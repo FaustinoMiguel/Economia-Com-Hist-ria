@@ -1,0 +1,20 @@
+# ── Build ─────────────────────────────────────────────────────────────────────
+dist/
+
+# ── Dependências ──────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Logs de email (gerados em dev) ───────────────────────────────────────────
+logs/
+
+# Ambiente
+.env
+.env.desenvolvimento
+.env.example
+.env.final
+.env.local
+.env.*.local
+
+# ── Sistema operativo ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

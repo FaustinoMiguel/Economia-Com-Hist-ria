@@ -34,7 +34,10 @@ A pasta `backend` já está preparada com uma estrutura inicial para:
 
 ## Mobile
 
-A pasta `mobile` já tem uma base inicial para uma app Expo / React Native.
+A pasta `mobile` contém a aplicação mobile (Expo / React Native + TypeScript),
+integrada com a mesma API do backend: autenticação JWT, conteúdos, quizzes,
+fórum e perfil. Ver [`mobile/README.md`](mobile/README.md) para instruções de
+execução.
 
 ## Database
 
@@ -48,12 +51,11 @@ A pasta `database` pode ser usada para:
 
 ## Como começar
 
-1. Trabalhar primeiro no `frontend`, porque já está funcional.
-2. Expandir o `backend` com autenticação, conteúdos e fórum.
-3. Evoluir o `mobile` usando a mesma API do backend.
-4. Organizar a `database` conforme o ORM ou motor que escolheres.
+1. Arrancar o `backend` (API + base de dados). Ver `backend/README.md`.
+2. Arrancar o `frontend` (interface web).
+3. Arrancar o `mobile` apontando para a API do backend. Ver `mobile/README.md`.
 
 ## Notas
 
-- O backend e o mobile foram criados como base inicial.
-- Se quiseres, a seguir posso colocar a pasta `database` dentro de `backend` para ficar tudo mais limpo.
+- As quatro camadas (`frontend`, `backend`, `mobile`, `database`) estão
+  funcionais e partilham a mesma API REST.

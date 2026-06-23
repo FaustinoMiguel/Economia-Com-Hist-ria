@@ -4,11 +4,14 @@ import { Button } from '../components/ui/button';
 import { Progress } from '../components/ui/progress';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { shuffle } from '../utils/shuffle';
 import AuthPrompt from '../components/AuthPrompt';
 
 export default function Resources() {
   const { user, isAuthenticated } = useAuth();
   const [activeQuiz, setActiveQuiz] = useState(null);
+  // Perguntas do quiz já baralhadas (ordem + opções) para a sessão atual
+  const [localQuestions, setLocalQuestions] = useState<any[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -920,6 +923,19 @@ export default function Resources() {
       setShowAuthPrompt(true);
       return;
     }
+    // Baralha a ordem das perguntas e das opções (remapeando o índice correto)
+    // para que, ao repetir o quiz, a sequência e as posições mudem sempre.
+    const baralhadas = shuffle(quizzes[quizType].questions).map((q: any) => {
+      const opcoes = shuffle(
+        q.options.map((text: string, i: number) => ({ text, correct: i === q.correct })),
+      );
+      return {
+        question: q.question,
+        options: opcoes.map((o) => o.text),
+        correct: opcoes.findIndex((o) => o.correct),
+      };
+    });
+    setLocalQuestions(baralhadas);
     setActiveQuiz(quizType);
     setCurrentQuestion(0);
     setScore(0);
@@ -937,8 +953,7 @@ export default function Resources() {
 
     setSelectedAnswer(answerIndex);
 
-    const currentQuiz = quizzes[activeQuiz];
-    const isCorrect = answerIndex === currentQuiz.questions[currentQuestion].correct;
+    const isCorrect = answerIndex === localQuestions[currentQuestion]?.correct;
 
     if (answerIndex === -1) {
       playSound('incorrect');
@@ -950,13 +965,13 @@ export default function Resources() {
     }
 
     setTimeout(() => {
-      if (currentQuestion + 1 < currentQuiz.questions.length) {
+      if (currentQuestion + 1 < localQuestions.length) {
         setCurrentQuestion(currentQuestion + 1);
         setSelectedAnswer(null);
         setTimeRemaining(30);
       } else {
         setShowResult(true);
-        setAnsweredQuestions(answeredQuestions + currentQuiz.questions.length);
+        setAnsweredQuestions(answeredQuestions + localQuestions.length);
         setTotalQuizzes(totalQuizzes + 1);
         const finalScore = isCorrect ? score + 10 : score;
         setTotalScore(totalScore + finalScore);
@@ -982,7 +997,8 @@ export default function Resources() {
 
   if (activeQuiz && !showResult) {
     const currentQuiz = quizzes[activeQuiz];
-    const question = currentQuiz.questions[currentQuestion];
+    const question = localQuestions[currentQuestion];
+    const totalLocais = localQuestions.length;
     const colorMap = {
       blue: { bg: 'bg-blue-600', hover: 'hover:bg-blue-700', light: 'bg-blue-50', text: 'text-blue-600' },
       red: { bg: 'bg-red-600', hover: 'hover:bg-red-700', light: 'bg-red-50', text: 'text-red-600' },
@@ -1024,7 +1040,7 @@ export default function Resources() {
             <div className="grid grid-cols-3 gap-4 text-sm mb-4">
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
                 <div className="text-xs opacity-75 mb-1">Pergunta</div>
-                <div className="font-bold">{currentQuestion + 1} / {currentQuiz.questions.length}</div>
+                <div className="font-bold">{currentQuestion + 1} / {totalLocais}</div>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
                 <div className="text-xs opacity-75 mb-1">Pontuação</div>
@@ -1050,7 +1066,7 @@ export default function Resources() {
               <div className="bg-white/20 rounded-full h-2">
                 <div
                   className="bg-white h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${((currentQuestion + 1) / currentQuiz.questions.length) * 100}%` }}
+                  style={{ width: `${((currentQuestion + 1) / totalLocais) * 100}%` }}
                 />
               </div>
             </div>

@@ -1,4 +1,5 @@
 import { useAuth } from '../contexts/AuthContext';
+import { apiRequest } from '../services/api';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { User, Mail, MapPin, Calendar, Trophy, Award, TrendingUp, BarChart3, Medal, Edit, GraduationCap, BookOpen, FileText, MessageSquare, Camera, Upload, Trash2, Save, X, Eye, Clock } from 'lucide-react';
@@ -117,32 +118,7 @@ export default function Profile() {
     }
   ]);
 
-  const [topicos, setTopicos] = useState<Topico[]>([
-    { 
-      id: 1, 
-      title: 'Estratégias para o Desenvolvimento Sustentável', 
-      replies: 12, 
-      date: '20 Mar 2026',
-      content: 'Como podemos conciliar crescimento económico com sustentabilidade ambiental em Angola? Quais são as melhores práticas internacionais que podemos adaptar?',
-      category: 'Sustentabilidade'
-    },
-    { 
-      id: 2, 
-      title: 'O Papel da Tecnologia na Economia Angolana', 
-      replies: 8, 
-      date: '18 Mar 2026',
-      content: 'A tecnologia tem um papel crescente na transformação da economia angolana. Este tópico discute as principais tendências e oportunidades.',
-      category: 'Tecnologia'
-    },
-    { 
-      id: 3, 
-      title: 'Desafios da Educação em Angola', 
-      replies: 15, 
-      date: '15 Mar 2026',
-      content: 'A educação é fundamental para o desenvolvimento. Quais são os principais desafios e como podemos superá-los? Partilhe suas ideias e experiências.',
-      category: 'Educação'
-    }
-  ]);
+  const [topicos, setTopicos] = useState<Topico[]>([]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -201,10 +177,22 @@ export default function Profile() {
         setArtigos(JSON.parse(savedArtigos));
       }
 
-      const savedTopicos = localStorage.getItem(`user_topicos_${user.email}`);
-      if (savedTopicos) {
-        setTopicos(JSON.parse(savedTopicos));
-      }
+      // Carregar os tópicos criados por este utilizador a partir da API real
+      apiRequest<any[]>('/topicos')
+        .then((todos) => {
+          const meus = (todos || [])
+            .filter((t) => String(t.criado_por) === String((user as any).id))
+            .map((t) => ({
+              id: Number(t.id),
+              title: t.titulo,
+              content: t.descricao ?? '',
+              category: t.categoria ?? 'Geral',
+              date: new Date(t.criado_em).toLocaleDateString('pt-PT'),
+              replies: Number(t.respostas ?? 0),
+            }));
+          setTopicos(meus);
+        })
+        .catch(() => { /* sem ligação — mantém vazio */ });
     }
   }, [user]);
 
@@ -299,26 +287,33 @@ export default function Profile() {
     setEditingTopico({ ...topico });
   };
 
-  const handleSaveTopico = () => {
-    if (editingTopico && user) {
-      const updatedTopicos = topicos.map(t => 
-        t.id === editingTopico.id ? editingTopico : t
-      );
-      setTopicos(updatedTopicos);
-      localStorage.setItem(`user_topicos_${user.email}`, JSON.stringify(updatedTopicos));
+  const handleSaveTopico = async () => {
+    if (!editingTopico) return;
+    try {
+      await apiRequest(`/topicos/${editingTopico.id}`, {
+        method: 'PUT',
+        json: {
+          titulo: editingTopico.title,
+          descricao: editingTopico.content ?? '',
+          categoria: editingTopico.category ?? null,
+        },
+      });
+      setTopicos(prev => prev.map(t => (t.id === editingTopico.id ? editingTopico : t)));
       setEditingTopico(null);
       alert('Tópico atualizado com sucesso!');
+    } catch (e) {
+      alert((e as Error).message || 'Não foi possível atualizar o tópico.');
     }
   };
 
-  const handleDeleteTopico = (id: number) => {
-    if (confirm('Tem certeza que deseja excluir este tópico?')) {
-      const updatedTopicos = topicos.filter(t => t.id !== id);
-      setTopicos(updatedTopicos);
-      if (user) {
-        localStorage.setItem(`user_topicos_${user.email}`, JSON.stringify(updatedTopicos));
-      }
+  const handleDeleteTopico = async (id: number) => {
+    if (!confirm('Tem certeza que deseja excluir este tópico? Esta ação é irreversível.')) return;
+    try {
+      await apiRequest(`/topicos/${id}`, { method: 'DELETE' });
+      setTopicos(prev => prev.filter(t => t.id !== id));
       alert('Tópico excluído com sucesso!');
+    } catch (e) {
+      alert((e as Error).message || 'Não foi possível excluir o tópico.');
     }
   };
 
