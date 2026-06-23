@@ -7,6 +7,7 @@ import Resources          from './pages/Resources'
 import Forum              from './pages/Forum'
 import Profile            from './pages/Profile'
 import AdminDashboard     from './pages/AdminDashboard'
+import AdminQuizzes       from './pages/AdminQuizzes'
 import Explorar           from './pages/Explorar'
 import Notifications      from './pages/Notifications'
 import PerguntasFrequentes from './pages/perguntasFrequentes'
@@ -27,6 +28,14 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute requireAdmin>
         <AdminDashboard />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/quizzes',
+    element: (
+      <ProtectedRoute requireAdmin>
+        <AdminQuizzes />
       </ProtectedRoute>
     ),
   },
