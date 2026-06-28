@@ -387,7 +387,7 @@ export default function AdminQuizzes() {
                 { label: 'Início',   href: '/',          Icon: Home },
                 { label: 'Explorar', href: '/artigos',   Icon: Compass },
                 { label: 'Quizes',   href: '/resources', Icon: HelpCircle },
-                { label: 'Debate',   href: '/forum',     Icon: MessageSquare },
+                { label: 'Fórum',    href: '/forum',     Icon: MessageSquare },
               ].map(({ label, href, Icon }) => (
                 <Link key={href} to={href} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
                   <Icon className="w-4 h-4" /> {label}
@@ -796,7 +796,7 @@ export default function AdminQuizzes() {
 
               <div className="flex gap-3 pt-2 border-t">
                 {editingId !== null && (
-                  <Button type="button" variant="outline" onClick={resetFormulario}>Cancelar Edição</Button>
+                  <Button type="button" variant="outline" onClick={resetFormulario}>Cancelar</Button>
                 )}
                 <Button onClick={handleSave} disabled={saving} className="bg-red-600 hover:bg-red-700 flex-1 gap-2">
                   <Save className="w-4 h-4" />

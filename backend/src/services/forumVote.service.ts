@@ -24,7 +24,11 @@ interface VotoConfig {
 
 export interface ResultadoVoto {
   votos: number
-  /** Voto actual do utilizador após a operação: 1, -1 ou 0 (sem voto). */
+  /** Nº de likes (valor = 1). */
+  likes: number
+  /** Nº de dislikes (valor = -1). */
+  dislikes: number
+  /** Voto actual do utilizador após a operação: 1 (like), -1 (dislike) ou 0 (sem voto). */
   meu_voto: number
 }
 
@@ -74,15 +78,21 @@ export async function registarVoto(
     }
 
     const [agg] = await conn.query<RowDataPacket[]>(
-      `SELECT COALESCE(SUM(valor), 0) AS total FROM ${cfg.votoTabela} WHERE ${cfg.idColuna} = ?`,
+      `SELECT
+         COALESCE(SUM(valor), 0)         AS total,
+         COALESCE(SUM(valor = 1), 0)     AS likes,
+         COALESCE(SUM(valor = -1), 0)    AS dislikes
+       FROM ${cfg.votoTabela} WHERE ${cfg.idColuna} = ?`,
       [alvoId],
     )
-    const votos = Number(agg[0]?.['total'] ?? 0)
+    const votos    = Number(agg[0]?.['total'] ?? 0)
+    const likes    = Number(agg[0]?.['likes'] ?? 0)
+    const dislikes = Number(agg[0]?.['dislikes'] ?? 0)
 
     await conn.query(`UPDATE ${cfg.alvoTabela} SET votos = ? WHERE id = ?`, [votos, alvoId])
 
     await conn.commit()
-    return { votos, meu_voto: meuVoto }
+    return { votos, likes, dislikes, meu_voto: meuVoto }
   } catch (err) {
     await conn.rollback()
     throw err

@@ -32,7 +32,7 @@ interface Topico {
 }
 
 export default function Profile() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [totalScore, setTotalScore] = useState(0);
   const [totalQuizzes, setTotalQuizzes] = useState(0);
@@ -128,24 +128,33 @@ export default function Profile() {
 
   useEffect(() => {
     if (user) {
-      // Carregar estatísticas do utilizador
-      const savedStats = localStorage.getItem(`quiz_stats_${user.email}`);
-      if (savedStats) {
-        const stats = JSON.parse(savedStats);
-        setTotalScore(stats.totalScore || 0);
-        setTotalQuizzes(stats.totalQuizzes || 0);
-      }
+      // Carregar estatísticas reais do utilizador a partir da API (/perfil)
+      apiRequest<any>('/perfil')
+        .then((perfil) => {
+          const s = perfil?.stats ?? {};
+          setTotalScore(Number(s.pontuacao_total ?? 0));
+          setTotalQuizzes(Number(s.quizzes_feitos ?? 0));
+        })
+        .catch(() => { /* sem ligação — mantém zeros */ });
 
-      // Carregar ranking
-      const savedRanking = localStorage.getItem('quiz_ranking');
-      if (savedRanking) {
-        const rankingData = JSON.parse(savedRanking);
-        setRanking(rankingData);
+      // Carregar ranking real (/ranking) e calcular a posição do utilizador
+      apiRequest<any[]>('/ranking')
+        .then((rankingData) => {
+          const normalizado = (rankingData ?? []).map((r) => ({
+            id: r.id,
+            name: r.nome ?? r.name ?? '—',
+            province: r.provincia ?? r.province ?? '—',
+            score: Number(r.pontuacao_total ?? r.score ?? 0),
+            quizzes: Number(r.quizzes_completados ?? r.quizzes ?? 0),
+          }));
+          setRanking(normalizado);
 
-        // Encontrar posição do utilizador
-        const position = rankingData.findIndex((r: any) => r.name === user.name);
-        setUserRank(position >= 0 ? position + 1 : null);
-      }
+          const position = normalizado.findIndex(
+            (r: any) => String(r.id) === String((user as any).id) || r.name === user.name,
+          );
+          setUserRank(position >= 0 ? position + 1 : null);
+        })
+        .catch(() => { /* sem ligação — mantém vazio */ });
 
       // Carregar dados do perfil do localStorage
       const savedProfile = localStorage.getItem(`user_profile_${user.email}`);
@@ -317,31 +326,35 @@ export default function Profile() {
     }
   };
 
-  // Função para salvar edição do perfil
-  const handleSaveProfile = () => {
-    if (user) {
-      const profileData = {
-        ...editedUser,
-        avatar: profileImage
-      };
-      localStorage.setItem(`user_profile_${user.email}`, JSON.stringify(profileData));
-      
-      // Atualizar também no ranking
-      const savedRanking = localStorage.getItem('quiz_ranking');
-      if (savedRanking) {
-        const rankingData = JSON.parse(savedRanking);
-        const userIndex = rankingData.findIndex((r: any) => r.name === user.name);
-        if (userIndex >= 0) {
-          rankingData[userIndex].institution = editedUser.institution;
-          rankingData[userIndex].course = editedUser.course;
-          localStorage.setItem('quiz_ranking', JSON.stringify(rankingData));
-        }
-      }
-      
-      alert('Perfil atualizado com sucesso!');
-      setShowEditProfile(false);
-      window.location.reload();
+  // Função para salvar edição do perfil — persiste na base de dados (/perfil)
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    try {
+      await apiRequest('/perfil', {
+        method: 'PUT',
+        json: {
+          nome: editedUser.name,
+          provincia: editedUser.province,
+          instituicao: editedUser.institution || null,
+          curso: editedUser.course || null,
+        },
+      });
+    } catch (e) {
+      alert((e as Error).message || 'Não foi possível atualizar o perfil na base de dados.');
+      return;
     }
+
+    // A foto (data-URL) fica no localStorage — não cabe no campo avatar_url
+    localStorage.setItem(
+      `user_profile_${user.email}`,
+      JSON.stringify({ ...editedUser, avatar: profileImage }),
+    );
+
+    // Atualiza o utilizador em sessão com os dados reais da BD
+    await refreshUser();
+
+    alert('Perfil atualizado com sucesso!');
+    setShowEditProfile(false);
   };
 
   if (!user) {
@@ -838,7 +851,7 @@ export default function Profile() {
               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl"
             >
               <Save className="w-4 h-4 mr-2" />
-              Salvar Alterações
+              Guardar Alterações
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -906,7 +919,7 @@ export default function Profile() {
               className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 rounded-xl"
             >
               <Save className="w-4 h-4 mr-2" />
-              Salvar Alterações
+              Guardar Alterações
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1029,7 +1042,7 @@ export default function Profile() {
               onClick={handleSaveProfile}
               className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 rounded-xl"
             >
-              Salvar Alterações
+              Guardar Alterações
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -99,12 +99,13 @@ interface PublishedTopic {
 }
 
 export default function AdminDashboard() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [users, setUsers] = useState<any[]>([]);
   const [contents, setContents] = useState<any[]>([]);
   const [ranking, setRanking] = useState<any[]>([]);
+  const [stats, setStats] = useState<any | null>(null);
   const [contentType, setContentType] = useState<string>('texto_normal');
   
   // Image upload state
@@ -130,6 +131,12 @@ export default function AdminDashboard() {
   // User detail modal
   const [userDetailModalOpen, setUserDetailModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [changingRole, setChangingRole] = useState(false);
+  const [selectedNewRole, setSelectedNewRole] = useState<string>('');
+  const [savingArticle, setSavingArticle] = useState(false);
+  const [savingTopic, setSavingTopic] = useState(false);
+  const [deletingContent, setDeletingContent] = useState(false);
+  const [deletingUser, setDeletingUser] = useState(false);
   
   // Edit form states
   const [editArticleForm, setEditArticleForm] = useState({
@@ -200,37 +207,106 @@ export default function AdminDashboard() {
   ];
 
   useEffect(() => {
+    if (authLoading) return; // aguarda a restauração da sessão
     if (!isAuthenticated || !user?.isAdmin) {
       navigate('/');
       return;
     }
     void loadData();
-  }, [isAuthenticated, user, navigate]);
+  }, [authLoading, isAuthenticated, user, navigate]);
+
+  // ── Normaliza um utilizador da API (chaves em PT) para a forma usada na UI ──
+  const normalizeUser = (item: any) => {
+    const tipo = String(item.tipo ?? item.role ?? 'subscrito');
+    return {
+      ...item,
+      id: String(item.id),
+      name: item.name ?? item.nome ?? '',
+      email: item.email ?? '',
+      province: item.province ?? item.provincia ?? null,
+      institution: item.institution ?? item.instituicao ?? null,
+      course: item.course ?? item.curso ?? null,
+      createdAt: item.createdAt ?? item.criado_em ?? new Date().toISOString(),
+      isAdmin: tipo === 'admin' || tipo === 'superadmin',
+      tipo,
+    };
+  };
+
+  // ── Mapeia uma linha da tabela `conteudo` para a forma da UI ──
+  const mapConteudo = (row: any) => ({
+    id: String(row.id),
+    title: row.titulo ?? '',
+    type: row.tipo ?? 'texto_normal',
+    description: row.descricao ?? '',
+    content: row.conteudo_completo ?? '',
+    imageUrl: row.tipo === 'video' ? '' : (row.url_recurso ?? ''),
+    videoUrl: row.tipo === 'video' ? (row.url_recurso ?? '') : '',
+    videoDuration: row.duracao ?? '',
+    podcastHost: row.apresentador ?? '',
+    podcastCategory: row.categoria_podcast ?? '',
+    episodes: [],
+    createdAt: row.publicado_em ?? new Date().toISOString(),
+    createdBy: row.autor_nome ?? 'Administração',
+    status: 'published',
+  });
+
+  // ── Mapeia um tópico do fórum (tabela `topico_forum`) para a forma da UI ──
+  const mapTopico = (row: any) => ({
+    id: String(row.id),
+    title: row.titulo ?? '',
+    type: 'topico',
+    description: row.descricao ?? '',
+    topicType: row.tipo_privacidade === 'privado' ? 'private' : 'public',
+    topicCategory: row.categoria ?? 'Economia',
+    createdAt: row.criado_em ?? new Date().toISOString(),
+    createdBy: row.autor_nome ?? 'Administração',
+    status: 'published',
+  });
 
   const loadData = async () => {
-    const currentUser = user ? { 'x-user-id': String(user.id) } : undefined;
-
+    // Utilizadores — base de dados real
     try {
-      const usersResponse = await apiRequest<any[]>('/users', {
-        headers: currentUser,
-      });
-      setUsers(usersResponse.map((item) => ({
-        ...item,
-        id: String(item.id),
-      })));
+      const usersResponse = await apiRequest<any[]>('/users');
+      setUsers(usersResponse.map(normalizeUser));
     } catch (error) {
       console.error('Erro ao carregar utilizadores:', error);
       setUsers([]);
     }
 
-    const rankingData = localStorage.getItem('quiz_ranking');
-    if (rankingData) {
-      setRanking(JSON.parse(rankingData));
+    // Estatísticas agregadas — base de dados real
+    try {
+      setStats(await apiRequest<any>('/admin/stats'));
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas:', error);
     }
 
-    const contentsData = localStorage.getItem('admin_contents');
-    if (contentsData) {
-      setContents(JSON.parse(contentsData));
+    // Conteúdos (artigos/vídeos/podcasts) + tópicos do fórum — base de dados real
+    try {
+      const [conteudos, topicos] = await Promise.all([
+        apiRequest<any[]>('/conteudos'),
+        apiRequest<any[]>('/topicos'),
+      ]);
+      setContents([
+        ...(conteudos ?? []).map(mapConteudo),
+        ...(topicos ?? []).map(mapTopico),
+      ]);
+    } catch (error) {
+      console.error('Erro ao carregar conteúdos:', error);
+      setContents([]);
+    }
+
+    // Ranking — base de dados real
+    try {
+      const rankingData = await apiRequest<any[]>('/ranking');
+      setRanking((rankingData ?? []).map((r) => ({
+        name: r.nome ?? r.name ?? '—',
+        province: r.provincia ?? r.province ?? '—',
+        score: Number(r.pontuacao_total ?? r.score ?? 0),
+        quizzes: Number(r.quizzes_completados ?? r.quizzes ?? 0),
+      })));
+    } catch (error) {
+      console.error('Erro ao carregar ranking:', error);
+      setRanking([]);
     }
   };
 
@@ -394,16 +470,11 @@ export default function AdminDashboard() {
     });
   };
 
-  const handleCreateContent = (e: React.FormEvent) => {
+  const handleCreateContent = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (contentType === 'video' && !newContent.videoUrl && !videoFile) {
       alert('Por favor, insira o URL do vídeo ou faça upload de um arquivo.');
-      return;
-    }
-    
-    if (contentType === 'podcast' && newContent.episodes.length === 0) {
-      alert('Por favor, adicione pelo menos um episódio ao podcast.');
       return;
     }
 
@@ -412,36 +483,44 @@ export default function AdminDashboard() {
       return;
     }
 
-    const finalImageUrl = coverImageFile 
-      ? `uploaded_${coverImageFile.name}` 
-      : newContent.imageUrl;
+    try {
+      if (contentType === 'topico') {
+        // Tópico do fórum → tabela topico_forum
+        await apiRequest('/topicos', {
+          method: 'POST',
+          json: {
+            titulo: newContent.title,
+            descricao: newContent.description,
+            categoria: newContent.topicCategory,
+            tipo_privacidade: newContent.topicType === 'private' ? 'privado' : 'publico',
+          },
+        });
+      } else {
+        // Artigo/vídeo/podcast → tabela conteudo
+        const isVideo = contentType === 'video';
+        await apiRequest('/conteudos', {
+          method: 'POST',
+          json: {
+            titulo: newContent.title,
+            descricao: newContent.description,
+            conteudo_completo: newContent.content || null,
+            tipo: newContent.type,
+            categoria: newContent.podcastCategory || null,
+            duracao: (isVideo ? newContent.videoDuration : newContent.observations) || null,
+            url_recurso: (isVideo ? newContent.videoUrl : newContent.imageUrl) || null,
+            apresentador: newContent.podcastHost || null,
+            categoria_podcast: newContent.podcastCategory || null,
+            publicado_por: user?.id ?? null,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao criar conteúdo:', error);
+      alert(`Não foi possível guardar o conteúdo na base de dados. ${(error as Error).message}`);
+      return;
+    }
 
-    const newContentItem = {
-      id: Math.random().toString(36).substring(2, 9),
-      title: newContent.title,
-      type: newContent.type,
-      description: newContent.description,
-      content: newContent.content,
-      references: newContent.references,
-      imageUrl: finalImageUrl,
-      imageFileName: coverImageFile?.name || null,
-      observations: newContent.observations,
-      videoUrl: newContent.videoUrl,
-      videoDuration: newContent.videoDuration,
-      videoFileName: videoFileName || null,
-      podcastHost: newContent.podcastHost,
-      podcastCategory: newContent.podcastCategory,
-      episodes: newContent.episodes,
-      topicType: newContent.topicType,
-      topicCategory: newContent.topicCategory,
-      createdAt: new Date().toISOString(),
-      createdBy: user?.name || 'Admin',
-      status: 'published'
-    };
-
-    const updatedContents = [...contents, newContentItem];
-    setContents(updatedContents);
-    localStorage.setItem('admin_contents', JSON.stringify(updatedContents));
+    await loadData();
 
     setNewContent({
       title: '',
@@ -504,33 +583,33 @@ export default function AdminDashboard() {
     setEditArticleModalOpen(true);
   };
 
-  const handleSaveArticleEdit = () => {
+  const handleSaveArticleEdit = async () => {
     if (!selectedArticle) return;
-    const finalImageUrl = editCoverImageFile 
-      ? `uploaded_${editCoverImageFile.name}` 
-      : editArticleForm.imageUrl;
+    setSavingArticle(true);
+    const isVideo = selectedArticle.type === 'video';
 
-    const updatedContents = contents.map(c => 
-      c.id === selectedArticle.id 
-        ? { 
-            ...c, 
-            title: editArticleForm.title,
-            description: editArticleForm.description,
-            content: editArticleForm.content,
-            references: editArticleForm.references,
-            observations: editArticleForm.observations,
-            imageUrl: finalImageUrl,
-            imageFileName: editCoverImageFile?.name || c.imageFileName,
-            videoUrl: editArticleForm.videoUrl,
-            videoDuration: editArticleForm.videoDuration,
-            podcastHost: editArticleForm.podcastHost,
-            podcastCategory: editArticleForm.podcastCategory,
-            episodes: editArticleForm.episodes,
-          }
-        : c
-    );
-    setContents(updatedContents);
-    localStorage.setItem('admin_contents', JSON.stringify(updatedContents));
+    try {
+      await apiRequest(`/conteudos/${selectedArticle.id}`, {
+        method: 'PUT',
+        json: {
+          titulo: editArticleForm.title,
+          descricao: editArticleForm.description,
+          conteudo_completo: editArticleForm.content || null,
+          duracao: editArticleForm.videoDuration || null,
+          url_recurso: (isVideo ? editArticleForm.videoUrl : editArticleForm.imageUrl) || null,
+          apresentador: editArticleForm.podcastHost || null,
+          categoria_podcast: editArticleForm.podcastCategory || null,
+        },
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar artigo:', error);
+      alert(`Não foi possível atualizar na base de dados. ${(error as Error).message}`);
+      setSavingArticle(false);
+      return;
+    }
+
+    await loadData();
+    setSavingArticle(false);
     setEditArticleModalOpen(false);
     setSelectedArticle(null);
     setEditCoverImageFile(null);
@@ -551,23 +630,29 @@ export default function AdminDashboard() {
     setEditTopicModalOpen(true);
   };
 
-  const handleSaveTopicEdit = () => {
+  const handleSaveTopicEdit = async () => {
     if (!selectedTopic) return;
-    const updatedContents = contents.map(c => 
-      c.id === selectedTopic.id 
-        ? { 
-            ...c, 
-            title: editTopicForm.title,
-            description: editTopicForm.description,
-            topicCategory: editTopicForm.topicCategory,
-            topicType: editTopicForm.topicType,
-            references: editTopicForm.references,
-            imageUrl: editTopicForm.imageUrl,
-          }
-        : c
-    );
-    setContents(updatedContents);
-    localStorage.setItem('admin_contents', JSON.stringify(updatedContents));
+    setSavingTopic(true);
+
+    try {
+      await apiRequest(`/topicos/${selectedTopic.id}`, {
+        method: 'PUT',
+        json: {
+          titulo: editTopicForm.title,
+          descricao: editTopicForm.description,
+          categoria: editTopicForm.topicCategory,
+          tipo_privacidade: editTopicForm.topicType === 'private' ? 'privado' : 'publico',
+        },
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar tópico:', error);
+      alert(`Não foi possível atualizar na base de dados. ${(error as Error).message}`);
+      setSavingTopic(false);
+      return;
+    }
+
+    await loadData();
+    setSavingTopic(false);
     setEditTopicModalOpen(false);
     setSelectedTopic(null);
     alert('Tópico atualizado com sucesso!');
@@ -578,11 +663,24 @@ export default function AdminDashboard() {
     setDeleteConfirmModalOpen(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
-    const updatedContents = contents.filter(c => c.id !== deleteTarget.id);
-    setContents(updatedContents);
-    localStorage.setItem('admin_contents', JSON.stringify(updatedContents));
+    setDeletingContent(true);
+    const endpoint = deleteTarget.type === 'topic'
+      ? `/topicos/${deleteTarget.id}`
+      : `/conteudos/${deleteTarget.id}`;
+
+    try {
+      await apiRequest(endpoint, { method: 'DELETE' });
+    } catch (error) {
+      console.error('Erro ao remover conteúdo:', error);
+      alert(`Não foi possível remover da base de dados. ${(error as Error).message}`);
+      setDeletingContent(false);
+      return;
+    }
+
+    await loadData();
+    setDeletingContent(false);
     setDeleteConfirmModalOpen(false);
     setDeleteTarget(null);
     alert(`${deleteTarget.type === 'article' ? 'Artigo' : 'Tópico'} removido com sucesso!`);
@@ -597,6 +695,7 @@ export default function AdminDashboard() {
 
   const handleDeleteUser = async (id: string) => {
     if (confirm('Tem certeza que deseja apagar este usuário?')) {
+      setDeletingUser(true);
       try {
         await apiRequest(`/users/${id}`, {
           method: 'DELETE',
@@ -606,13 +705,35 @@ export default function AdminDashboard() {
       } catch (error) {
         console.error('Erro ao remover utilizador:', error);
         alert('Não foi possível apagar o utilizador.');
+      } finally {
+        setDeletingUser(false);
       }
     }
   };
 
   const handleViewUser = (userItem: any) => {
     setSelectedUser(userItem);
+    setSelectedNewRole(userItem.tipo ?? 'subscrito');
     setUserDetailModalOpen(true);
+  };
+
+  const handleChangeUserRole = async () => {
+    if (!selectedUser || !selectedNewRole) return;
+    setChangingRole(true);
+    try {
+      await apiRequest(`/admin/utilizadores/${selectedUser.id}/tipo`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo: selectedNewRole }),
+      });
+      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, tipo: selectedNewRole, isAdmin: selectedNewRole === 'admin' || selectedNewRole === 'superadmin' } : u));
+      setSelectedUser((prev: any) => ({ ...prev, tipo: selectedNewRole, isAdmin: selectedNewRole === 'admin' || selectedNewRole === 'superadmin' }));
+    } catch (error) {
+      console.error('Erro ao mudar papel:', error);
+      alert('Não foi possível mudar o papel do utilizador.');
+    } finally {
+      setChangingRole(false);
+    }
   };
 
   const getContentTypeLabel = (type: string) => {
@@ -750,9 +871,10 @@ export default function AdminDashboard() {
               <CardContent>
                 <div className="space-y-4">
                   {[
-                    { icon: UserCheck, color: 'text-blue-600', label: 'Novos usuários', desc: `${totalUsers} usuários registados`, count: totalUsers },
-                    { icon: BookOpen, color: 'text-green-600', label: 'Artigos publicados', desc: `Total de ${totalArticles} artigos`, count: totalArticles },
-                    { icon: MessageSquare, color: 'text-yellow-600', label: 'Tópicos publicados', desc: `Total de ${totalTopics} tópicos`, count: totalTopics },
+                    { icon: UserCheck, color: 'text-blue-600', label: 'Utilizadores registados', desc: stats?.novos_hoje != null ? `${stats.novos_hoje} novos hoje` : `${totalUsers} no total`, count: stats?.total_utilizadores ?? totalUsers },
+                    { icon: BookOpen, color: 'text-green-600', label: 'Artigos / conteúdos', desc: `Conteúdos publicados na biblioteca`, count: stats?.total_conteudos ?? totalArticles },
+                    { icon: MessageSquare, color: 'text-yellow-600', label: 'Tópicos do fórum', desc: `${stats?.total_respostas_forum ?? 0} respostas no total`, count: stats?.total_topicos ?? totalTopics },
+                    { icon: FileQuestion, color: 'text-orange-600', label: 'Quizzes ativos', desc: `${stats?.total_perguntas_quiz ?? 0} perguntas · ${stats?.total_tentativas_quiz ?? 0} tentativas`, count: stats?.total_quizzes ?? 0 },
                   ].map((item, idx) => (
                     <div key={idx} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
                       <item.icon className={`w-5 h-5 ${item.color} mt-0.5`} />
@@ -798,7 +920,7 @@ export default function AdminDashboard() {
                         <Button variant="outline" size="sm" onClick={() => handleViewUser(userItem)}>
                           <Eye className="w-4 h-4 mr-1" /> Ver
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleDeleteUser(userItem.id)}>
+                        <Button variant="destructive" size="sm" onClick={() => handleDeleteUser(userItem.id)} disabled={deletingUser}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -1068,7 +1190,12 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <h3 className="text-2xl font-bold text-slate-900">{selectedUser.name}</h3>
-                    <Badge variant="outline" className="mt-1">{selectedUser.isAdmin ? 'Administrador' : 'Usuário'}</Badge>
+                    <Badge variant="outline" className="mt-1 capitalize">{
+                      selectedUser.tipo === 'admin' ? 'Administrador' :
+                      selectedUser.tipo === 'superadmin' ? 'Super-Administrador' :
+                      selectedUser.tipo === 'professor' ? 'Professor' :
+                      selectedUser.tipo === 'subscrito' ? 'Subscrito' : 'Visitante'
+                    }</Badge>
                   </div>
                 </div>
 
@@ -1147,6 +1274,35 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+
+                {/* Mudar Papel */}
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-blue-600" /> Papel / Permissões
+                  </h4>
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedNewRole}
+                      onChange={(e) => setSelectedNewRole(e.target.value)}
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    >
+                      <option value="visitante">Visitante</option>
+                      <option value="subscrito">Subscrito</option>
+                      <option value="professor">Professor</option>
+                      <option value="admin">Administrador</option>
+                      <option value="superadmin">Super-Administrador</option>
+                    </select>
+                    <Button
+                      onClick={handleChangeUserRole}
+                      disabled={changingRole || selectedNewRole === selectedUser.tipo}
+                      className="bg-blue-600 hover:bg-blue-700"
+                      size="sm"
+                    >
+                      {changingRole ? 'A guardar...' : 'Guardar'}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">Professor: pode criar salas de discussão e gerir tópicos privados.</p>
+                </div>
               </div>
             );
           })()}
@@ -1170,7 +1326,7 @@ export default function AdminDashboard() {
             <div className="space-y-2"><label className="text-sm font-medium text-slate-700">Observações</label><Textarea value={editArticleForm.observations} onChange={(e) => setEditArticleForm({ ...editArticleForm, observations: e.target.value })} rows={2} /></div>
             <div className="space-y-2"><label className="text-sm font-medium text-slate-700 flex items-center gap-2"><Image className="w-4 h-4" /> Imagem de Capa</label><div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:border-red-400 transition-colors"><input type="file" accept="image/*" onChange={handleEditImageUpload} className="hidden" id="edit-cover-image-upload" ref={editFileInputRef} />{editCoverImagePreview ? (<div className="relative"><img src={editCoverImagePreview} alt="Preview" className="w-full h-48 object-cover rounded-lg" /><button type="button" onClick={handleRemoveEditImage} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"><X className="w-4 h-4" /></button></div>) : selectedArticle?.imageUrl && !selectedArticle.imageUrl.startsWith('uploaded_') ? (<div className="relative"><img src={selectedArticle.imageUrl} alt="Capa atual" className="w-full h-48 object-cover rounded-lg" /><label htmlFor="edit-cover-image-upload" className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity cursor-pointer rounded-lg"><span className="text-white text-sm font-medium">Clique para alterar</span></label></div>) : (<label htmlFor="edit-cover-image-upload" className="cursor-pointer"><Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" /><p className="text-sm text-slate-600">Clique para fazer upload</p><p className="text-xs text-slate-400 mt-1">PNG, JPG, WebP até 5MB</p></label>)}</div><div className="space-y-2 mt-2"><label className="text-sm font-medium text-slate-700">Ou URL da Imagem</label><Input value={editArticleForm.imageUrl} onChange={(e) => setEditArticleForm({ ...editArticleForm, imageUrl: e.target.value })} placeholder="https://exemplo.com/imagem.jpg" type="url" /></div></div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setEditArticleModalOpen(false)}>Cancelar</Button><Button onClick={handleSaveArticleEdit} className="bg-red-600 hover:bg-red-700">Salvar Alterações</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setEditArticleModalOpen(false)}>Cancelar</Button><Button onClick={handleSaveArticleEdit} disabled={savingArticle} className="bg-red-600 hover:bg-red-700">{savingArticle ? 'A guardar...' : 'Guardar Alterações'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -1188,7 +1344,7 @@ export default function AdminDashboard() {
             <div className="space-y-2"><label className="text-sm font-medium text-slate-700">Referências</label><Textarea value={editTopicForm.references} onChange={(e) => setEditTopicForm({ ...editTopicForm, references: e.target.value })} rows={2} /></div>
             <div className="space-y-2"><label className="text-sm font-medium text-slate-700 flex items-center gap-2"><Image className="w-4 h-4" /> URL da Imagem</label><Input value={editTopicForm.imageUrl} onChange={(e) => setEditTopicForm({ ...editTopicForm, imageUrl: e.target.value })} placeholder="https://exemplo.com/imagem.jpg" type="url" /></div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setEditTopicModalOpen(false)}>Cancelar</Button><Button onClick={handleSaveTopicEdit} className="bg-red-600 hover:bg-red-700">Salvar Alterações</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setEditTopicModalOpen(false)}>Cancelar</Button><Button onClick={handleSaveTopicEdit} disabled={savingTopic} className="bg-red-600 hover:bg-red-700">{savingTopic ? 'A guardar...' : 'Guardar Alterações'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -1196,7 +1352,7 @@ export default function AdminDashboard() {
       <Dialog open={deleteConfirmModalOpen} onOpenChange={setDeleteConfirmModalOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader><DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-red-600" /> Confirmar Eliminação</DialogTitle><DialogDescription className="text-sm text-slate-600">Tem certeza que deseja eliminar este {deleteTarget?.type === 'article' ? 'artigo' : 'tópico'}? Esta ação não pode ser desfeita.</DialogDescription></DialogHeader>
-          <DialogFooter className="flex gap-3 sm:justify-end"><Button variant="outline" onClick={() => { setDeleteConfirmModalOpen(false); setDeleteTarget(null); }}>Cancelar</Button><Button onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">Eliminar</Button></DialogFooter>
+          <DialogFooter className="flex gap-3 sm:justify-end"><Button variant="outline" onClick={() => { setDeleteConfirmModalOpen(false); setDeleteTarget(null); }} disabled={deletingContent}>Cancelar</Button><Button onClick={handleConfirmDelete} disabled={deletingContent} className="bg-red-600 hover:bg-red-700">{deletingContent ? 'A eliminar...' : 'Eliminar'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

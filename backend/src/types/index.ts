@@ -21,8 +21,8 @@ declare global {
   }
 }
 
-// 'superadmin' adicionado — requer migration_quiz_ownership.sql aplicada
-export type UserType = 'visitante' | 'subscrito' | 'admin' | 'superadmin'
+// 'professor' adicionado — requer 005_papel_professor.sql aplicada
+export type UserType = 'visitante' | 'subscrito' | 'professor' | 'admin' | 'superadmin'
 
 // Estende RowDataPacket — obrigatório para usar como genérico em pool.query<UserRecord[]>
 export interface UserRecord extends RowDataPacket {

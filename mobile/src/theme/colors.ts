@@ -5,4 +5,9 @@ export const colors = {
   surface: '#FFFFFF',
   text: '#111827',
   muted: '#6B7280',
+  border: '#E5E7EB',
+  success: '#1D9E75',
+  danger: '#DC2626',
+  warning: '#BA7517',
+  accent: '#EAB308',
 }

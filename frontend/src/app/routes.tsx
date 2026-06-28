@@ -13,6 +13,7 @@ import Notifications      from './pages/Notifications'
 import PerguntasFrequentes from './pages/perguntasFrequentes'
 import RecuperarSenha     from './pages/RecuperarSenha'
 import RedefinirSenha     from './pages/RedefinirSenha'
+import SalasDiscussao     from './pages/SalasDiscussao'
 import Layout             from './components/Layout'
 import ProtectedRoute     from './components/ProtectedRoute'
 
@@ -22,25 +23,7 @@ export const router = createBrowserRouter([
   { path: '/recuperar-senha',  Component: RecuperarSenha },
   { path: '/redefinir-senha',  Component: RedefinirSenha },
 
-  // ── Backoffice (só admin) ────────────────────────────────────────────────
-  {
-    path: '/admin',
-    element: (
-      <ProtectedRoute requireAdmin>
-        <AdminDashboard />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/admin/quizzes',
-    element: (
-      <ProtectedRoute requireAdmin>
-        <AdminQuizzes />
-      </ProtectedRoute>
-    ),
-  },
-
-  // ── Layout principal ─────────────────────────────────────────────────────
+  // ── Layout principal (com navbar) ────────────────────────────────────────
   {
     path: '/',
     Component: Layout,
@@ -52,6 +35,7 @@ export const router = createBrowserRouter([
       { path: 'forum',                 Component: Forum },
       { path: 'explorar',              Component: Explorar },
       { path: 'perguntas-frequentes',  Component: PerguntasFrequentes },
+      { path: 'salas',                 Component: SalasDiscussao },
       {
         path: 'profile',
         element: <ProtectedRoute><Profile /></ProtectedRoute>,
@@ -59,6 +43,16 @@ export const router = createBrowserRouter([
       {
         path: 'notifications',
         element: <ProtectedRoute><Notifications /></ProtectedRoute>,
+      },
+
+      // ── Backoffice (só admin) — dentro do Layout para ter a navbar ────────
+      {
+        path: 'admin',
+        element: <ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>,
+      },
+      {
+        path: 'admin/quizzes',
+        element: <ProtectedRoute requireAdmin><AdminQuizzes /></ProtectedRoute>,
       },
     ],
   },

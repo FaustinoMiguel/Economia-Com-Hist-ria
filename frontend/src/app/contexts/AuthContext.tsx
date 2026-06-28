@@ -39,8 +39,12 @@ interface AuthContextType {
   ) => Promise<boolean>
   logout:          () => void
   refreshUser:     () => Promise<void>
-  isAuthenticated: boolean
-  isAdmin:         boolean
+  isAuthenticated:      boolean
+  isAdmin:              boolean
+  isProfessor:          boolean
+  isProfessorOuAdmin:   boolean
+  /** true enquanto a sessão guardada está a ser restaurada ao montar */
+  loading:              boolean
 }
 
 // ── Contexto ──────────────────────────────────────────────────────────────────
@@ -75,6 +79,7 @@ function normalizeUser(raw: Record<string, unknown>): User {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user,  setUser]  = useState<User | null>(null)
   const [token, setTokenState] = useState<string | null>(getToken)
+  const [loading, setLoading] = useState(true)
 
   // Restaura sessão do localStorage ao montar
   useEffect(() => {
@@ -88,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearSession()
       }
     }
+    setLoading(false)
   }, [])
 
   function clearSession() {
@@ -168,8 +174,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         refreshUser,
-        isAuthenticated: !!user && !!token,
-        isAdmin:         !!user?.isAdmin,
+        isAuthenticated:    !!user && !!token,
+        isAdmin:            !!user?.isAdmin,
+        isProfessor:        user?.role === 'professor',
+        isProfessorOuAdmin: user?.role === 'professor' || !!user?.isAdmin,
+        loading,
       }}
     >
       {children}

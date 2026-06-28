@@ -133,6 +133,70 @@ export async function enviarEmailRecuperacao(
   }
 }
 
+function tplConvite(nomeConvidado: string, nomeEntidade: string, tipoEntidade: string, url: string, codigo: string): string {
+  const n = nomeConvidado.replace(/</g, '&lt;')
+  const e = nomeEntidade.replace(/</g, '&lt;')
+  return `
+  <div style="font-family:sans-serif;max-width:520px;margin:auto;color:#1e293b">
+    <div style="text-align:center;padding:2rem 0 1rem">
+      <span style="font-size:2.5rem">📚</span>
+      <h2 style="margin:.5rem 0">Economia com História</h2>
+    </div>
+    <div style="background:#f8fafc;border-radius:12px;padding:2rem;border:1px solid #e2e8f0">
+      <h3 style="color:#b91c1c;margin-top:0">Convite para ${tipoEntidade}</h3>
+      <p>Olá <strong>${n}</strong>,</p>
+      <p>Foste convidado para participar em <strong>${e}</strong>.</p>
+      <div style="text-align:center;margin:2rem 0">
+        <a href="${url}"
+           style="background:#b91c1c;color:#fff;padding:.85rem 2rem;border-radius:8px;
+                  text-decoration:none;font-weight:700;font-size:1rem;display:inline-block">
+          Aceitar Convite
+        </a>
+      </div>
+      <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:1rem;margin:1rem 0;text-align:center">
+        <p style="margin:0;font-size:.85rem;color:#856404">Código de acesso</p>
+        <p style="margin:.5rem 0 0;font-size:1.5rem;font-weight:700;letter-spacing:.2em;color:#1e293b">${codigo}</p>
+      </div>
+      <p style="font-size:.85rem;color:#64748b">
+        Ou usa o código acima ao entrar na plataforma.
+      </p>
+    </div>
+    <div style="padding:1.5rem;font-size:.8rem;color:#94a3b8;text-align:center">
+      Se não conheces esta plataforma, podes ignorar este email.
+    </div>
+  </div>`
+}
+
+export async function enviarEmailConvite(
+  emailDestino: string,
+  nomeConvidado: string,
+  nomeEntidade: string,
+  tipoEntidade: 'Sala de Discussão' | 'Tópico Privado',
+  codigo: string,
+): Promise<void> {
+  const url = `${env.frontendUrl}/entrar-convite?codigo=${codigo}`
+  const subject = `Convite para ${tipoEntidade} — Economia com História`
+
+  logEmail(emailDestino, subject, url)
+
+  if (!smtpConfigured()) {
+    console.warn(`⚠️  SMTP não configurado — convite para ${emailDestino} registado em logs.`)
+    return
+  }
+
+  try {
+    await createTransporter().sendMail({
+      from:    env.emailFrom,
+      to:      emailDestino,
+      subject,
+      html:    tplConvite(nomeConvidado, nomeEntidade, tipoEntidade, url, codigo),
+    })
+    console.log(`✅ Convite enviado para ${emailDestino}`)
+  } catch (err) {
+    console.error('❌ SMTP falhou ao enviar convite:', err)
+  }
+}
+
 export async function enviarEmailBoasVindas(
   nome:  string,
   email: string,

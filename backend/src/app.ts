@@ -4,12 +4,10 @@ import { router } from './routes/index.js'
 import { notFound } from './middlewares/notFound.js'
 import { errorHandler } from './middlewares/errorHandler.js'
 import { env } from './config/env.js'
-import { testDatabaseConnection } from './config/database.js'
-
 const app = express()
 
 app.use(cors({
-  origin: env.corsOrigin,
+  origin: env.isDev ? true : env.corsOrigin,
   credentials: true,
   // Expõe o header Authorization para o cliente
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -24,13 +22,5 @@ app.get('/health', (_req, res) => {
 app.use('/api', router)
 app.use(notFound)
 app.use(errorHandler)
-
-// Testa a ligação à BD ao arrancar
-testDatabaseConnection()
-  .then(() => console.log('✅  Base de dados ligada'))
-  .catch((err) => {
-    console.error('❌  Falha ao ligar à base de dados:', err)
-    process.exit(1)
-  })
 
 export default app

@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
 
-type UserType = 'visitante' | 'subscrito' | 'admin' | 'superadmin'
+type UserType = 'visitante' | 'subscrito' | 'professor' | 'admin' | 'superadmin'
 
 /**
  * Factory que devolve um middleware que verifica se req.user.role
@@ -22,5 +22,8 @@ export function requireRole(...roles: UserType[]) {
 /** Atalho: admins e superadmins. */
 export const requireAdmin = requireRole('admin', 'superadmin')
 
-/** Atalho: admins, superadmins e subscritores. */
-export const requireAuth = requireRole('subscrito', 'admin', 'superadmin')
+/** Atalho: qualquer utilizador autenticado (subscrito, professor, admin, superadmin). */
+export const requireAuth = requireRole('subscrito', 'professor', 'admin', 'superadmin')
+
+/** Atalho: professores, admins e superadmins. */
+export const requireProfessorOuAdmin = requireRole('professor', 'admin', 'superadmin')

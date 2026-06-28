@@ -1,3 +1,5 @@
+import axios from 'axios'
+
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api'
 
 // ── Chave de armazenamento do token ──────────────────────────────────────────
@@ -71,3 +73,34 @@ export async function apiRequest<T>(path: string, options: ApiOptions = {}): Pro
 export function getApiBase() {
   return API_BASE
 }
+
+// ── Cliente axios (default export) ────────────────────────────────────────────
+// Usado pela tela Explorar e componentes. Partilha o mesmo token ('authToken')
+// e base URL do cliente fetch acima, para manter a sessão coerente.
+const api = axios.create({
+  baseURL: API_BASE,
+  timeout: 15000,
+  headers: { 'Content-Type': 'application/json' },
+})
+
+api.interceptors.request.use((config) => {
+  const token = getToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401) {
+      removeToken()
+      localStorage.removeItem('currentUser')
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(error)
+  },
+)
+
+export default api

@@ -63,8 +63,8 @@ export async function listAllUsers(req: Request, res: Response) {
 // ── PATCH /api/admin/utilizadores/:id/tipo ────────────────────────────────────
 export async function changeUserRole(req: Request, res: Response) {
   const { tipo } = req.body ?? {}
-  if (!['visitante', 'subscrito', 'admin'].includes(tipo)) {
-    return res.status(400).json({ message: 'tipo inválido. Use: visitante, subscrito ou admin.' })
+  if (!['visitante', 'subscrito', 'professor', 'admin', 'superadmin'].includes(tipo)) {
+    return res.status(400).json({ message: 'tipo inválido. Use: visitante, subscrito, professor, admin ou superadmin.' })
   }
 
   const [result] = await pool.query<ResultSetHeader>(

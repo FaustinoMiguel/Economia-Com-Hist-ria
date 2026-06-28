@@ -10,6 +10,7 @@ import {
   marcarTokenUsado,
   limparTokensReset,
 } from '../services/password-reset.service.js'
+import { eventBus } from '../services/events.service.js'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,9 @@ export async function register(req: Request, res: Response) {
 
   // Email de boas-vindas não-bloqueante
   enviarEmailBoasVindas(user.nome, user.email).catch(() => null)
+
+  // Evento de domínio: permite que outros módulos reajam ao novo registo
+  eventBus.emit('utilizador:registado', { userId: user.id, nome: user.nome, email: user.email })
 
   return res.status(201).json({ token, user: toPublicUser(user) })
 }

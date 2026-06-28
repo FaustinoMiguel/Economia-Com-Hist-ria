@@ -247,7 +247,7 @@ export async function deleteTopico(req: Request, res: Response) {
   const topico = rows[0]
   if (!topico) return res.status(404).json({ message: 'Tópico não encontrado' })
 
-  const isAdmin = role === 'admin' || role === 'superadmin'
+  const isAdmin = role === 'admin' || role === 'superadmin' || role === 'professor'
   if (!isAdmin && topico['criado_por'] !== userId) {
     return res.status(403).json({ message: 'Só o autor do tópico ou um administrador pode apagá-lo.' })
   }

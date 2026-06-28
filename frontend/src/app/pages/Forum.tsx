@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ChevronUp, ChevronDown, Plus, Search, Pin, CircleCheck, Eye, Clock,
+  ThumbsUp, Plus, Search, Pin, CircleCheck, Eye, Clock,
   MessageCircle, X, ArrowLeft, Flame, MessageSquare, ShieldCheck, Lock, Send, Trash2,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../components/ui/dialog';
@@ -94,28 +94,22 @@ function ehStaff(tipo?: string): boolean {
 // ── Coluna de votação ───────────────────────────────────────────────────────
 function VotoCol({ votos, meuVoto, onVote }: { votos: number; meuVoto?: number | null; onVote: (v: number) => void }) {
   return (
-    <div className="flex flex-col items-center gap-1 min-w-[36px]">
+    <div className="flex flex-col items-center justify-center gap-4 min-w-[44px] self-stretch py-2">
+      <span className={`text-sm font-semibold ${votos > 0 ? 'text-green-600' : 'text-slate-800'}`}>{votos}</span>
       <button
-        aria-label="votar positivo"
+        aria-label="gosto"
+        title="Gosto (+1)"
         onClick={(e) => { e.stopPropagation(); onVote(1); }}
-        className={`w-8 h-7 flex items-center justify-center rounded-md border transition-colors ${
-          meuVoto === 1 ? 'border-red-600 text-red-600 bg-red-50' : 'border-slate-200 text-slate-400 hover:border-red-400 hover:text-red-500'
+        className={`w-9 h-8 flex items-center justify-center rounded-lg border transition-colors ${
+          meuVoto === 1 ? 'border-green-600 text-green-600 bg-green-50' : 'border-slate-200 text-slate-400 hover:border-green-400 hover:text-green-500'
         }`}
-      ><ChevronUp className="w-4 h-4" /></button>
-      <span className="text-sm font-medium text-slate-800">{votos}</span>
-      <button
-        aria-label="votar negativo"
-        onClick={(e) => { e.stopPropagation(); onVote(-1); }}
-        className={`w-8 h-7 flex items-center justify-center rounded-md border transition-colors ${
-          meuVoto === -1 ? 'border-slate-500 text-slate-600 bg-slate-100' : 'border-slate-200 text-slate-400 hover:border-slate-400 hover:text-slate-600'
-        }`}
-      ><ChevronDown className="w-4 h-4" /></button>
+      ><ThumbsUp className="w-4 h-4" /></button>
     </div>
   );
 }
 
 export default function Forum() {
-  const { isAuthenticated, user, isAdmin } = useAuth();
+  const { isAuthenticated, user, isAdmin, isProfessorOuAdmin } = useAuth();
 
   const [todos, setTodos] = useState<Topico[]>([]);
   const [loading, setLoading] = useState(true);
@@ -207,6 +201,7 @@ export default function Forum() {
       const data = await apiRequest<any>(`/topicos/${id}`);
       setDetalhe({ ...data, respostas_lista: data.respostas ?? [] });
       setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, visualizacoes: Number(data.visualizacoes ?? t.visualizacoes) } : t)));
+      window.scrollTo({ top: 0 });
     } catch (e) {
       toast.error('Não foi possível abrir o tópico.');
     } finally {
@@ -304,8 +299,11 @@ export default function Forum() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <AuthPrompt open={showAuth} onOpenChange={setShowAuth} action={authAction} />
 
-        <button onClick={() => setDetalhe(null)} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-red-600 mb-4">
-          <ArrowLeft className="w-4 h-4" /> Voltar ao fórum
+        <button
+          onClick={() => { setDetalhe(null); window.scrollTo({ top: 0 }); }}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-red-600 mb-4 border border-slate-200 hover:border-red-300 rounded-lg px-3 py-1.5 bg-white"
+        >
+          <ArrowLeft className="w-4 h-4" /> Voltar aos debates
         </button>
 
         <div className="bg-white border border-slate-200 rounded-xl p-5 flex gap-4">
@@ -458,9 +456,9 @@ export default function Forum() {
           ) : (
             <>
               {fixados.length > 0 && <div className="text-[11px] text-slate-400 font-medium uppercase tracking-wide pt-1">Fixados</div>}
-              {fixados.map((t) => <Card key={t.id} t={t} onOpen={abrir} onVote={votarTopico} podeGerir={isAdmin} onDelete={apagarTopico} />)}
+              {fixados.map((t) => <Card key={t.id} t={t} onOpen={abrir} onVote={votarTopico} podeGerir={isProfessorOuAdmin} onDelete={apagarTopico} />)}
               {normais.length > 0 && <div className="text-[11px] text-slate-400 font-medium uppercase tracking-wide pt-2 flex items-center gap-1"><Flame className="w-3 h-3 text-[#BA7517]" /> Discussões</div>}
-              {normais.map((t) => <Card key={t.id} t={t} onOpen={abrir} onVote={votarTopico} podeGerir={isAdmin} onDelete={apagarTopico} />)}
+              {normais.map((t) => <Card key={t.id} t={t} onOpen={abrir} onVote={votarTopico} podeGerir={isProfessorOuAdmin} onDelete={apagarTopico} />)}
             </>
           )}
         </main>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import {
   BookOpen,
@@ -11,16 +11,19 @@ import {
   LogOut,
   Menu,
   MessageSquare,
+  MessagesSquare,
   User,
   X,
 } from 'lucide-react'
 import { useAuth } from '../app/contexts/AuthContext'
+import { apiRequest } from '../app/services/api'
 
 const navLinks = [
   { label: 'Início', href: '/', icon: Home },
   { label: 'Explorar', href: '/explorar', icon: Compass },
   { label: 'Quizes', href: '/resources', icon: HelpCircle },
-  { label: 'Debate', href: '/forum', icon: MessageSquare },
+  { label: 'Fórum', href: '/forum', icon: MessageSquare },
+  { label: 'Salas', href: '/salas', icon: MessagesSquare },
 ]
 
 export default function Navbar() {
@@ -29,6 +32,23 @@ export default function Navbar() {
   const navigate = useNavigate()
   const [menuAberto, setMenuAberto] = useState(false)
   const [perfilAberto, setPerfilAberto] = useState(false)
+  const [naoLidas, setNaoLidas] = useState(0)
+
+  // Contagem real de notificações por ler — refrescada ao navegar e a cada 60s
+  useEffect(() => {
+    if (!isAuthenticated) { setNaoLidas(0); return }
+
+    let ativo = true
+    const carregar = async () => {
+      try {
+        const r = await apiRequest<{ nao_lidas: number }>('/notificacoes?limit=1')
+        if (ativo) setNaoLidas(Number(r?.nao_lidas ?? 0))
+      } catch { /* sem ligação — mantém o valor atual */ }
+    }
+    void carregar()
+    const id = window.setInterval(carregar, 60000)
+    return () => { ativo = false; window.clearInterval(id) }
+  }, [isAuthenticated, location.pathname])
 
   function handleLogout() {
     logout()
@@ -81,10 +101,15 @@ export default function Navbar() {
               <>
                 <Link
                   to="/notifications"
+                  aria-label={naoLidas > 0 ? `Notificações (${naoLidas} por ler)` : 'Notificações'}
                   className="relative flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
                 >
                   <Bell className="h-4 w-4" />
-                  <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-600" />
+                  {naoLidas > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-none text-white">
+                      {naoLidas > 9 ? '9+' : naoLidas}
+                    </span>
+                  )}
                 </Link>
 
                 <div className="relative">

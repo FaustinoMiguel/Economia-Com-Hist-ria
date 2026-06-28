@@ -1,16 +1,34 @@
 import { Link } from 'react-router'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ArrowRight, BookOpen, GraduationCap, MapPin, MessageSquare,
-  TrendingUp, Compass, HelpCircle, Sparkles, Award, Zap, ChevronDown, ChevronUp
+  TrendingUp, Compass, HelpCircle, Sparkles, Award, Zap, ChevronDown, ChevronUp, Lock
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import HeroCarousel from '../components/HeroCarousel'
+import { useAuth } from '../contexts/AuthContext'
+import AuthPrompt from '../components/AuthPrompt'
+import { apiRequest } from '../services/api'
 
 export default function Home() {
+  const { isAuthenticated } = useAuth()
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false)
   const [tooltip, setTooltip] = useState({ visible: false, content: '', x: 0, y: 0 })
   const [openFaqs, setOpenFaqs] = useState<number[]>([])
+  const [platformStats, setPlatformStats] = useState({
+    total_conteudos: 0,
+    total_perguntas_quiz: 0,
+    total_topicos: 0,
+    total_utilizadores: 0,
+  })
+
+  useEffect(() => {
+    apiRequest<typeof platformStats>('/stats')
+      .then(data => { if (data) setPlatformStats(data) })
+      .catch(() => { /* silencioso — mantém zeros */ })
+  }, [])
 
   const toggleFaq = (index: number) => {
     setOpenFaqs(prev => 
@@ -70,6 +88,8 @@ export default function Home() {
     }
   }, [])
 
+  const fmt = (n: number) => n > 0 ? `${n}+` : '…'
+
   const features = [
     {
       icon: Compass,
@@ -78,7 +98,7 @@ export default function Home() {
       link: '/explorar',
       color: 'from-yellow-500 to-yellow-600',
       bgGlow: 'from-yellow-500/20 to-transparent',
-      stat: '200+ Conteúdos',
+      stat: fmt(platformStats.total_conteudos) + ' Conteúdos',
     },
     {
       icon: MapPin,
@@ -87,7 +107,7 @@ export default function Home() {
       link: '/resources',
       color: 'from-blue-500 to-blue-600',
       bgGlow: 'from-blue-500/20 to-transparent',
-      stat: '50+ Visualizações',
+      stat: fmt(platformStats.total_perguntas_quiz) + ' Questões',
     },
     {
       icon: MessageSquare,
@@ -96,15 +116,15 @@ export default function Home() {
       link: '/forum',
       color: 'from-green-500 to-green-600',
       bgGlow: 'from-green-500/20 to-transparent',
-      stat: '60+ Debates',
+      stat: 'Debates Ativos',
     },
   ]
 
   const statsData = [
-    { value: '50+', label: 'Conteúdos para Explorar', icon: BookOpen },
-    { value: '100+', label: 'Questões de Quiz', icon: GraduationCap },
-    { value: '60+', label: 'Debates Temáticos', icon: MessageSquare },
-    { value: '3+', label: 'Rankings Disponíveis', icon: Award },
+    { value: fmt(platformStats.total_conteudos),      label: 'Conteúdos para Explorar', icon: BookOpen },
+    { value: fmt(platformStats.total_perguntas_quiz), label: 'Questões de Quiz',         icon: GraduationCap },
+    { value: fmt(platformStats.total_topicos),        label: 'Debates Temáticos',        icon: MessageSquare },
+    { value: '3+',                                     label: 'Rankings Disponíveis',     icon: Award },
   ]
 
   const faqs = [
@@ -118,6 +138,7 @@ export default function Home() {
 
   return (
     <div className="overflow-x-hidden">
+      <AuthPrompt open={showAuthPrompt} onOpenChange={setShowAuthPrompt} action="aproveitar todas as funcionalidades da plataforma" />
         <HeroCarousel />
 
         {/* Stats - Ícones removidos */}
@@ -273,13 +294,17 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Tooltip flutuante */}
-        {tooltip.visible && (
+        {/* Tooltip flutuante — renderizado num portal para document.body.
+            O <main> do Layout tem transform (animação de fade), o que cria um
+            containing block e quebrava o position:fixed, atirando o tooltip para
+            fora do ecrã. O portal escapa a esse ancestral transformado. */}
+        {tooltip.visible && createPortal(
           <div
             className="tooltipMapa"
             style={{ position: 'fixed', top: tooltip.y, left: tooltip.x, backgroundColor: '#1e293b', color: '#ffffff', padding: '8px 12px', borderRadius: '8px', maxWidth: '240px', zIndex: 9999, fontSize: '11px', lineHeight: '1.5', pointerEvents: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'system-ui, -apple-system, sans-serif' }}
             dangerouslySetInnerHTML={{ __html: tooltip.content }}
-          />
+          />,
+          document.body,
         )}
 
         <style>{`

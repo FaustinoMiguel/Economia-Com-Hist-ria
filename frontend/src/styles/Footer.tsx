@@ -45,7 +45,7 @@ export default function Footer() {
                 { label: 'Início', href: '/' },
                 { label: 'Explorar', href: '/explorar' },
                 { label: 'Quizes', href: '/resources' },
-                { label: 'Debate', href: '/forum' },
+                { label: 'Fórum', href: '/forum' },
               ].map((link) => (
                 <li key={link.href}>
                   <Link to={link.href} className="text-sm text-slate-400 transition-colors hover:text-white">

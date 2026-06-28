@@ -3,11 +3,7 @@
     "target": "ES2022",
     "module": "ESNext",
     "jsx": "react-jsx",
-    "strict": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
+    "strict": true
   },
   "extends": "expo/tsconfig.base",
   "include": ["App.tsx", "src"]
