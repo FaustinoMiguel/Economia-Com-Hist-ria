@@ -73,7 +73,7 @@ export async function listTopicos(req: Request, res: Response) {
 
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT t.id, t.titulo, t.descricao, t.criado_por, t.tipo_privacidade, t.categoria, t.tags,
-            t.requires_access, t.fixado, t.resolvido, t.resposta_aceite_id,
+            t.requires_access, t.fixado, t.resolvido, t.fechado, t.resposta_aceite_id,
             t.likes, t.votos, t.respostas, t.visualizacoes, t.criado_em, t.ultima_atividade,
             u.nome AS autor_nome, u.avatar_url AS autor_avatar, u.tipo AS autor_tipo${meuVotoSel}${acessoSel}${pedidosSel}
      FROM topico_forum t
@@ -438,6 +438,29 @@ export async function fixarTopico(req: Request, res: Response) {
   const novo = rows[0]['fixado'] ? 0 : 1
   await pool.query('UPDATE topico_forum SET fixado = ? WHERE id = ?', [novo, topicoId])
   return res.json({ fixado: novo })
+}
+
+// ── POST /api/topicos/:id/fechar ─────────────────────────────────────────────
+// Toggle: fecha ou reabre o tópico. Só o criador ou admin.
+export async function fecharTopico(req: Request, res: Response) {
+  const userId   = req.user!.userId
+  const role     = req.user!.role
+  const topicoId = Number(req.params.id)
+
+  const [rows] = await pool.query<RowDataPacket[]>(
+    'SELECT criado_por, fechado FROM topico_forum WHERE id = ? LIMIT 1', [topicoId],
+  )
+  const topico = rows[0]
+  if (!topico) return res.status(404).json({ message: 'Tópico não encontrado.' })
+
+  const isAdmin = role === 'admin' || role === 'superadmin'
+  if (!isAdmin && topico['criado_por'] !== userId) {
+    return res.status(403).json({ message: 'Só o criador do tópico ou um administrador pode fechá-lo.' })
+  }
+
+  const novo = topico['fechado'] ? 0 : 1
+  await pool.query('UPDATE topico_forum SET fechado = ? WHERE id = ?', [novo, topicoId])
+  return res.json({ fechado: novo })
 }
 
 // ── POST /api/topicos/:id/resolver ────────────────────────────────────────────

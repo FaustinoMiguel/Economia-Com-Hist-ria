@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import * as ContentModel from '../models/content.model.js'
+import { pool } from '../config/database.js'
 
 export async function uploadConteudoFicheiro(req: Request, res: Response): Promise<void> {
   if (!req.file) {
@@ -187,6 +188,86 @@ export async function denunciarConteudo(req: Request, res: Response): Promise<vo
   }
 }
 
+export async function listarPedidosDoMeuConteudo(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = req.user!.userId
+    const [rows] = await (pool as any).query(
+      `SELECT s.id, s.status, s.motivo, s.solicitado_em, s.respondido_em, s.observacoes_resposta,
+              u.id AS usuario_id, u.nome AS usuario_nome, u.email AS usuario_email,
+              c.id AS conteudo_id, c.titulo AS conteudo_titulo
+       FROM solicitacao_acesso_jindungo s
+       JOIN utilizador u ON u.id = s.subscrito_id
+       JOIN conteudo   c ON c.id = s.conteudo_id
+       WHERE c.publicado_por = ?
+       ORDER BY s.solicitado_em DESC`,
+      [userId],
+    )
+    res.status(200).json({ pedidos: rows })
+  } catch (error) {
+    console.error('Erro ao listar pedidos:', error)
+    res.status(500).json({ erro: 'Erro interno ao listar pedidos.' })
+  }
+}
+
+export async function responderPedidoAcesso(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = req.user!.userId
+    const pedidoId = parseInt(String(req.params.pedidoId))
+    const { status, observacoes = null } = req.body ?? {}
+
+    if (!['aprovado', 'rejeitado'].includes(status)) {
+      res.status(400).json({ erro: 'status deve ser: aprovado ou rejeitado.' })
+      return
+    }
+
+    // Verificar que o pedido é de um conteúdo criado por este utilizador
+    const [rows] = await (pool as any).query(
+      `SELECT s.*, c.titulo, c.publicado_por
+       FROM solicitacao_acesso_jindungo s
+       JOIN conteudo c ON c.id = s.conteudo_id
+       WHERE s.id = ? LIMIT 1`,
+      [pedidoId],
+    )
+    const pedido = (rows as any[])[0]
+    if (!pedido) {
+      res.status(404).json({ erro: 'Pedido não encontrado.' })
+      return
+    }
+    if (pedido.publicado_por !== userId) {
+      res.status(403).json({ erro: 'Só o criador do conteúdo pode responder a este pedido.' })
+      return
+    }
+
+    await (pool as any).query(
+      `UPDATE solicitacao_acesso_jindungo
+       SET status = ?, admin_responsavel = ?, observacoes_resposta = ?, respondido_em = NOW()
+       WHERE id = ?`,
+      [status, userId, observacoes, pedidoId],
+    )
+
+    if (status === 'aprovado') {
+      await (pool as any).query(
+        `INSERT INTO notificacao (usuario_id, tipo, entidade_id, titulo, mensagem, link_destino)
+         VALUES (?, 'acesso_jindungo_aprovado', ?, 'Acesso aprovado', ?, '/explorar')`,
+        [pedido.subscrito_id, pedido.conteudo_id,
+         `O teu pedido de acesso a "${pedido.titulo}" foi aprovado.`],
+      )
+    } else {
+      await (pool as any).query(
+        `INSERT INTO notificacao (usuario_id, tipo, entidade_id, titulo, mensagem, link_destino)
+         VALUES (?, 'acesso_jindungo_rejeitado', ?, 'Pedido de acesso rejeitado', ?, '/explorar')`,
+        [pedido.subscrito_id, pedido.conteudo_id,
+         `O teu pedido de acesso a "${pedido.titulo}" não foi aceite.`],
+      )
+    }
+
+    res.status(200).json({ sucesso: true })
+  } catch (error) {
+    console.error('Erro ao responder pedido:', error)
+    res.status(500).json({ erro: 'Erro interno ao responder pedido.' })
+  }
+}
+
 export async function solicitarAcessoConteudo(req: Request, res: Response): Promise<void> {
   try {
     const conteudoId = parseInt(String(req.params.id))
@@ -198,6 +279,22 @@ export async function solicitarAcessoConteudo(req: Request, res: Response): Prom
     }
 
     await ContentModel.criarSolicitacaoAcesso(conteudoId, req.user!.userId, motivo?.trim() || null)
+
+    // Notifica o criador do conteúdo sobre o novo pedido
+    const [conteudoRows] = await pool.query<any[]>(
+      'SELECT titulo, publicado_por FROM conteudo WHERE id = ? LIMIT 1',
+      [conteudoId],
+    )
+    const conteudo = conteudoRows[0]
+    if (conteudo && conteudo.publicado_por !== req.user!.userId) {
+      await pool.query(
+        `INSERT INTO notificacao (usuario_id, tipo, entidade_id, titulo, mensagem, link_destino)
+         VALUES (?, 'pedido_acesso_jindungo', ?, 'Novo pedido de acesso Jindungo', ?, '/explorar')`,
+        [conteudo.publicado_por, conteudoId,
+         `Alguém solicitou acesso ao teu conteúdo "${conteudo.titulo}".`],
+      )
+    }
+
     res.status(201).json({
       sucesso: true,
       accessRequest: {

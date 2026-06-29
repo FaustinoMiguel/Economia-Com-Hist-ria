@@ -49,6 +49,33 @@ export async function getPublicProfile(req: Request, res: Response) {
   return res.json({ ...toPublicUser(user), stats: stats[0] })
 }
 
+// ── POST /api/perfil/change-password ─────────────────────────────────────────
+export async function changePassword(req: Request, res: Response) {
+  const userId = req.user!.userId
+  const { senhaAtual, novaSenha } = req.body ?? {}
+
+  if (!senhaAtual || !novaSenha) {
+    return res.status(400).json({ message: 'Campos obrigatórios em falta.' })
+  }
+  if (String(novaSenha).length < 8) {
+    return res.status(400).json({ message: 'A nova senha deve ter pelo menos 8 caracteres.' })
+  }
+
+  const [rows] = await pool.query<UserRecord[]>(
+    'SELECT senha_hash FROM utilizador WHERE id = ? LIMIT 1', [userId],
+  )
+  if (!rows[0]) return res.status(404).json({ message: 'Utilizador não encontrado.' })
+
+  const ok = await bcrypt.compare(String(senhaAtual), rows[0].senha_hash ?? '')
+  if (!ok) return res.status(401).json({ message: 'A senha actual está incorrecta.' })
+
+  await pool.query(
+    'UPDATE utilizador SET senha_hash = ? WHERE id = ?',
+    [await bcrypt.hash(String(novaSenha), 10), userId],
+  )
+  return res.json({ message: 'Senha alterada com sucesso.' })
+}
+
 // ── PUT /api/perfil ───────────────────────────────────────────────────────────
 export async function updateMyProfile(req: Request, res: Response) {
   const userId  = req.user!.userId

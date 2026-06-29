@@ -50,6 +50,23 @@ export async function createComentario(req: Request, res: Response) {
     }
   }
 
+  // Notifica o criador do conteúdo quando alguém (não ele próprio) comenta
+  if (!comentario_pai_id) {
+    const [conteudo] = await pool.query<RowDataPacket[]>(
+      'SELECT publicado_por, titulo FROM conteudo WHERE id = ? LIMIT 1',
+      [conteudoId],
+    )
+    const criador = (conteudo as RowDataPacket[])[0]?.['publicado_por']
+    const titulo  = (conteudo as RowDataPacket[])[0]?.['titulo'] ?? 'conteúdo'
+    if (criador && criador !== userId) {
+      await pool.query(
+        `INSERT INTO notificacao (usuario_id, tipo, entidade_id, titulo, mensagem, link_destino)
+         VALUES (?, 'novo_comentario_conteudo', ?, 'Novo comentário no teu conteúdo', ?, '/explorar')`,
+        [criador, conteudoId, `Alguém comentou em "${titulo}".`],
+      )
+    }
+  }
+
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT c.*, u.nome AS autor_nome, u.avatar_url AS autor_avatar
      FROM comentario_conteudo c JOIN utilizador u ON u.id = c.autor_id

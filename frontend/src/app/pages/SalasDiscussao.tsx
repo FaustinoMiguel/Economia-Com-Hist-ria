@@ -6,7 +6,7 @@ import { Input } from '../components/ui/input'
 import { Textarea } from '../components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../components/ui/dialog'
 import { Badge } from '../components/ui/badge'
-import { MessageSquare, Plus, Send, Users, Lock, ArrowLeft, Settings, UserCheck, UserX, Mail, Copy, Check, Trash2, Paperclip, X as XIcon } from 'lucide-react'
+import { MessageSquare, Plus, Send, Users, Lock, ArrowLeft, Settings, UserCheck, UserX, Mail, Copy, Check, Trash2, Paperclip, X as XIcon, CornerUpLeft } from 'lucide-react'
 import FicheiroPreview from '../components/FicheiroPreview'
 import { getApiBase, getToken } from '../services/api'
 
@@ -31,6 +31,10 @@ interface Mensagem {
   autor_id: number
   autor_nome: string
   autor_avatar: string | null
+  mensagem_pai_id?: number | null
+  pai_mensagem?: string | null
+  pai_ficheiro_nome?: string | null
+  pai_autor_nome?: string | null
 }
 
 interface Membro {
@@ -66,8 +70,10 @@ export default function SalasDiscussao() {
   const [copiado, setCopiado] = useState(false)
   const [aApagarSala, setAApagarSala] = useState(false)
   const [ficheiroAnexo, setFicheiroAnexo] = useState<File | null>(null)
+  const [replyingTo, setReplyingTo] = useState<Mensagem | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const mensagensEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const isProfessorOuAdmin = user?.role === 'professor' || user?.role === 'admin' || user?.role === 'superadmin'
   const isCriador = salaAtiva ? salaAtiva.criador_id === user?.id : false
@@ -112,6 +118,7 @@ export default function SalasDiscussao() {
         const fd = new FormData()
         fd.append('mensagem', novaMensagem.trim())
         fd.append('ficheiro', ficheiroAnexo)
+        if (replyingTo) fd.append('mensagem_pai_id', String(replyingTo.id))
         const resp = await fetch(`${getApiBase()}/salas/${salaAtiva.id}/mensagens`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${getToken()}` },
@@ -123,12 +130,13 @@ export default function SalasDiscussao() {
         data = await apiRequest<{ mensagem: Mensagem }>(`/salas/${salaAtiva.id}/mensagens`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mensagem: novaMensagem.trim() }),
+          body: JSON.stringify({ mensagem: novaMensagem.trim(), mensagem_pai_id: replyingTo?.id ?? null }),
         })
       }
       setMensagens(prev => [...prev, data.mensagem])
       setNovaMensagem('')
       setFicheiroAnexo(null)
+      setReplyingTo(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
     } catch {
       alert('Não foi possível enviar a mensagem.')
@@ -237,6 +245,14 @@ export default function SalasDiscussao() {
     }
   }
 
+  function scrollParaMensagem(id: number) {
+    const el = document.getElementById(`msg-${id}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('bg-yellow-50', 'ring-1', 'ring-yellow-300', 'rounded-xl', 'transition-all')
+    setTimeout(() => el.classList.remove('bg-yellow-50', 'ring-1', 'ring-yellow-300'), 1500)
+  }
+
   function copiarCodigo() {
     navigator.clipboard.writeText(codigoCriado)
     setCopiado(true)
@@ -306,12 +322,26 @@ export default function SalasDiscussao() {
                     <div className="flex-1 h-px bg-slate-200" />
                   </div>
                 )}
-                <div className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#800020] to-orange-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                <div id={`msg-${msg.id}`} className={`group flex gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#800020] to-orange-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-4">
                     {msg.autor_nome.substring(0, 2).toUpperCase()}
                   </div>
                   <div className={`max-w-[70%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-0.5`}>
                     {!isOwn && <span className="text-xs text-slate-500 px-1">{msg.autor_nome}</span>}
+                    {/* Citação da mensagem pai */}
+                    {msg.mensagem_pai_id && (msg.pai_mensagem || msg.pai_ficheiro_nome) && (
+                      <button
+                        onClick={() => scrollParaMensagem(msg.mensagem_pai_id!)}
+                        className={`text-left text-[11px] px-2.5 py-1.5 rounded-xl mb-0.5 border-l-2 w-full cursor-pointer transition-opacity hover:opacity-80 ${isOwn ? 'bg-[#5C0016]/40 border-white/50 text-white/80' : 'bg-slate-100 border-slate-300 text-slate-500'}`}
+                      >
+                        <span className="font-medium block">{msg.pai_autor_nome}</span>
+                        <span className="line-clamp-1 flex items-center gap-1">
+                          {msg.pai_ficheiro_nome && !msg.pai_mensagem
+                            ? <><Paperclip className="w-3 h-3 inline shrink-0" />{msg.pai_ficheiro_nome}</>
+                            : msg.pai_mensagem}
+                        </span>
+                      </button>
+                    )}
                     <div className={`px-3 py-2 rounded-2xl text-sm ${isOwn ? 'bg-[#800020] text-white rounded-tr-sm' : 'bg-white text-slate-800 shadow-sm rounded-tl-sm border border-slate-100'}`}>
                       {msg.mensagem && <span>{msg.mensagem}</span>}
                       {msg.ficheiro_url && (
@@ -320,7 +350,15 @@ export default function SalasDiscussao() {
                         </div>
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-400 px-1">{formatHora(msg.criado_em)}</span>
+                    <div className={`flex items-center gap-2 px-1 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                      <span className="text-[10px] text-slate-400">{formatHora(msg.criado_em)}</span>
+                      <button
+                        onClick={() => { setReplyingTo(msg); inputRef.current?.focus() }}
+                        className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border border-slate-200 text-slate-500 hover:border-[#800020] hover:text-[#800020] hover:bg-[#FFF2F2] transition-colors"
+                      >
+                        <CornerUpLeft className="w-3 h-3" /> Responder
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -331,6 +369,18 @@ export default function SalasDiscussao() {
 
         {/* Input de mensagem */}
         <div className="px-4 py-3 border-t bg-white">
+          {replyingTo && (
+            <div className="flex items-center gap-2 mb-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+              <CornerUpLeft className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="text-[11px] text-slate-500 flex-1 truncate">
+                A responder a <strong>{replyingTo.autor_nome}</strong>
+                {replyingTo.mensagem ? <span className="ml-1 text-slate-400">· {replyingTo.mensagem.substring(0, 50)}{replyingTo.mensagem.length > 50 ? '…' : ''}</span> : null}
+              </span>
+              <button onClick={() => setReplyingTo(null)} className="text-slate-400 hover:text-slate-600 shrink-0">
+                <XIcon className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
           {ficheiroAnexo && (
             <div className="flex items-center gap-2 mb-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
               <Paperclip className="w-3.5 h-3.5 text-blue-500 shrink-0" />
@@ -354,10 +404,11 @@ export default function SalasDiscussao() {
               <Paperclip className="w-4 h-4" />
             </label>
             <Input
+              ref={inputRef}
               value={novaMensagem}
               onChange={(e) => setNovaMensagem(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void enviarMensagem() } }}
-              placeholder="Escreve uma mensagem..."
+              placeholder={replyingTo ? `Responder a ${replyingTo.autor_nome}…` : 'Escreve uma mensagem…'}
               className="flex-1 resize-none"
             />
             <Button onClick={enviarMensagem} disabled={aEnviar || (!novaMensagem.trim() && !ficheiroAnexo)} className="bg-[#800020] hover:bg-[#5C0016] h-10 w-10 p-0 shrink-0">

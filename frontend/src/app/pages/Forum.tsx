@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router';
 import {
   ThumbsUp, Plus, Search, Pin, CircleCheck, Eye, Clock,
   MessageCircle, X, ArrowLeft, Flame, MessageSquare, ShieldCheck, Lock, Send, Trash2,
-  Paperclip, FileText, Image as ImageIcon, UserCheck, UserX, Bell,
+  Paperclip, FileText, Image as ImageIcon, UserCheck, UserX, Bell, LockOpen, CornerDownRight,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../components/ui/dialog';
 import { useAuth } from '../contexts/AuthContext';
@@ -38,6 +38,7 @@ interface Topico {
   tipo_privacidade: 'publico' | 'privado';
   fixado: number;
   resolvido: number;
+  fechado: number;
   resposta_aceite_id: number | null;
   votos: number;
   meu_voto?: number | null;
@@ -50,6 +51,9 @@ interface Topico {
 }
 interface TopicoDetalhe extends Topico {
   respostas_lista: Resposta[];
+}
+interface RespostaComReplies extends Resposta {
+  resposta_pai_id?: number | null;
 }
 
 // ── Cores de categoria (atribuídas dinamicamente por nome) ──────────────────
@@ -130,14 +134,35 @@ export default function Forum() {
   const [showAuth, setShowAuth] = useState(false);
   const [authAction, setAuthAction] = useState('participar no fórum');
 
+  const [tagFiltro, setTagFiltro] = useState<string | null>(null);
+
+  // hashtags em tendência — contagem de todas as tags dos tópicos carregados
+  const hashtagsTendencia = useMemo(() => {
+    const conta: Record<string, number> = {};
+    todos.forEach(t => {
+      if (!t.tags) return;
+      t.tags.split(',').map(s => s.trim().toLowerCase()).filter(Boolean).forEach(tag => {
+        conta[tag] = (conta[tag] ?? 0) + 1;
+      });
+    });
+    return Object.entries(conta).sort((a, b) => b[1] - a[1]).slice(0, 12);
+  }, [todos]);
+
   const [showNovo, setShowNovo] = useState(false);
-  const [novo, setNovo] = useState({ titulo: '', categoria: 'Economia', tags: '', descricao: '', privado: false });
+  const [novo, setNovo] = useState({ titulo: '', categoria: 'Economia', descricao: '', privado: false });
+  const [novasTags, setNovasTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
   const [aCriar, setACriar] = useState(false);
 
   const [respostaTexto, setRespostaTexto] = useState('');
   const [aResponder, setAResponder] = useState(false);
   const [ficheiroAnexo, setFicheiroAnexo] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [replyingTo, setReplyingTo] = useState<Resposta | null>(null);
+  const [inlineReplyId, setInlineReplyId] = useState<number | null>(null);
+  const [inlineReplyText, setInlineReplyText] = useState('');
+  const [inlineReplyPlaceholder, setInlineReplyPlaceholder] = useState('');
+  const [aEnviarReply, setAEnviarReply] = useState(false);
   const [aPedirAcesso, setAPedirAcesso] = useState(false);
 
   interface PedidoAcesso { id: number; subscrito_id: number; nome: string; email: string; motivo: string | null; criado_em: string }
@@ -181,6 +206,7 @@ export default function Forum() {
     }
     if (filtro === 'sem-resposta') lista = lista.filter((t) => t.respostas === 0);
     if (filtro === 'resolvidos')   lista = lista.filter((t) => t.resolvido);
+    if (tagFiltro) lista = lista.filter((t) => t.tags?.split(',').map(s => s.trim().toLowerCase()).includes(tagFiltro));
     // Fixados primeiro; em empate de votos, a mais recente fica acima da mais
     // antiga (criado_em desc), terminando sempre no id (único) para ser determinístico.
     lista.sort((a, b) => {
@@ -193,7 +219,7 @@ export default function Forum() {
         || b.id - a.id;
     });
     return lista;
-  }, [todos, categoria, busca, filtro]);
+  }, [todos, categoria, busca, filtro, tagFiltro]);
 
   // Categorias derivadas dos tópicos reais (com contagem), ordenadas por frequência
   const categoriasLista = useMemo(() => {
@@ -291,11 +317,12 @@ export default function Forum() {
     try {
       await apiRequest('/topicos', { method: 'POST', json: {
         titulo: novo.titulo.trim(), descricao: novo.descricao.trim(), categoria: novo.categoria,
-        tags: novo.tags.trim() || null, tipo_privacidade: novo.privado ? 'privado' : 'publico',
+        tags: novasTags.length ? novasTags.join(',') : null, tipo_privacidade: novo.privado ? 'privado' : 'publico',
       }});
       toast.success('Tópico publicado com sucesso!');
       setShowNovo(false);
-      setNovo({ titulo: '', categoria: 'Economia', tags: '', descricao: '', privado: false });
+      setNovo({ titulo: '', categoria: 'Economia', descricao: '', privado: false });
+      setNovasTags([]); setTagInput('');
       await carregar();
     } catch (e) { toast.error((e as Error).message); }
     finally { setACriar(false); }
@@ -383,6 +410,7 @@ export default function Forum() {
         const fd = new FormData();
         fd.append('conteudo', respostaTexto.trim());
         fd.append('ficheiro', ficheiroAnexo);
+        if (replyingTo) fd.append('resposta_pai_id', String(replyingTo.id));
         const resp = await fetch(`${getApiBase()}/topicos/${detalhe.id}/respostas`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${getToken()}` },
@@ -391,21 +419,58 @@ export default function Forum() {
         if (!resp.ok) throw new Error((await resp.json()).message ?? 'Erro ao enviar.');
         nova = await resp.json();
       } else {
-        nova = await apiRequest<any>(`/topicos/${detalhe.id}/respostas`, { method: 'POST', json: { conteudo: respostaTexto.trim() } });
+        nova = await apiRequest<any>(`/topicos/${detalhe.id}/respostas`, {
+          method: 'POST',
+          json: { conteudo: respostaTexto.trim(), resposta_pai_id: replyingTo?.id ?? null },
+        });
       }
       setDetalhe((d) => d ? { ...d, respostas: d.respostas + 1, respostas_lista: [...d.respostas_lista, {
         id: nova.id, conteudo: nova.conteudo, ficheiro_url: nova.ficheiro_url, ficheiro_nome: nova.ficheiro_nome,
         autor_id: nova.autor_id, autor_nome: nova.autor_nome ?? (user as any)?.nome ?? 'Tu',
-        autor_tipo: nova.autor_tipo, votos: 0, meu_voto: 0, publicado_em: nova.publicado_em ?? new Date().toISOString(), aceite: false,
+        autor_tipo: nova.autor_tipo, votos: 0, meu_voto: 0, publicado_em: nova.publicado_em ?? new Date().toISOString(),
+        aceite: false, resposta_pai_id: replyingTo?.id ?? null,
       }] } : d);
       setTodos((prev) => prev.map((t) => t.id === detalhe.id ? { ...t, respostas: t.respostas + 1 } : t));
       setRespostaTexto('');
       setFicheiroAnexo(null);
+      setReplyingTo(null);
     } catch (e) { toast.error((e as Error).message); }
     finally { setAResponder(false); }
   };
 
   const podeResolver = (t: Topico) => isAuthenticated && (isAdmin || t.criado_por === Number((user as any)?.id));
+  const podeFechare  = (t: Topico) => isAuthenticated && (isAdmin || t.criado_por === Number((user as any)?.id));
+
+  const responderInline = async (paiId: number) => {
+    if (!detalhe || !inlineReplyText.trim()) return;
+    setAEnviarReply(true);
+    try {
+      const nova = await apiRequest<any>(`/topicos/${detalhe.id}/respostas`, {
+        method: 'POST',
+        json: { conteudo: inlineReplyText.trim(), resposta_pai_id: paiId },
+      });
+      setDetalhe((d) => d ? { ...d, respostas: d.respostas + 1, respostas_lista: [...d.respostas_lista, {
+        id: nova.id, conteudo: nova.conteudo, ficheiro_url: null, ficheiro_nome: null,
+        autor_id: nova.autor_id, autor_nome: nova.autor_nome ?? (user as any)?.nome ?? 'Tu',
+        autor_tipo: nova.autor_tipo, votos: 0, meu_voto: 0,
+        publicado_em: nova.publicado_em ?? new Date().toISOString(),
+        aceite: false, resposta_pai_id: paiId,
+      }] } : d);
+      setTodos((prev) => prev.map((t) => t.id === detalhe.id ? { ...t, respostas: t.respostas + 1 } : t));
+      setInlineReplyText('');
+      setInlineReplyId(null);
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setAEnviarReply(false); }
+  };
+
+  const fecharTopico = async (id: number) => {
+    try {
+      const r = await apiRequest<{ fechado: number }>(`/topicos/${id}/fechar`, { method: 'POST' });
+      setDetalhe((d) => d && d.id === id ? { ...d, fechado: r.fechado } : d);
+      setTodos((prev) => prev.map((t) => t.id === id ? { ...t, fechado: r.fechado } : t));
+      toast.success(r.fechado ? 'Tópico fechado. Não é possível responder.' : 'Tópico reaberto.');
+    } catch (e) { toast.error((e as Error).message); }
+  };
 
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER: DETALHE
@@ -498,38 +563,163 @@ export default function Forum() {
 
         <div className="flex items-center justify-between px-1 mt-6 mb-3">
           <span className="text-sm font-medium text-slate-800">{detalhe.respostas_lista.length} {detalhe.respostas_lista.length === 1 ? 'resposta' : 'respostas'}</span>
+          {/* Fechar fórum — só para o criador e apenas se houver comentários */}
+          {podeFechare(detalhe) && detalhe.respostas_lista.length > 0 && (
+            <button
+              onClick={() => fecharTopico(detalhe.id)}
+              className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-[#800020] transition-colors"
+            >
+              {detalhe.fechado
+                ? <><LockOpen className="w-3 h-3" /> Reabrir debate</>
+                : <><Lock className="w-3 h-3" /> Fechar debate</>}
+            </button>
+          )}
         </div>
 
+        {detalhe.fechado ? (
+          <div className="flex items-center gap-2 px-3 py-2 mb-3 bg-slate-50 border border-slate-200 rounded-lg text-[12px] text-slate-500">
+            <Lock className="w-3.5 h-3.5 shrink-0" /> Este debate foi fechado pelo criador. Não é possível adicionar novas respostas.
+          </div>
+        ) : null}
+
+        {/* Replies agrupados — raiz + filhos indentados */}
         <div className="flex flex-col gap-3">
-          {detalhe.respostas_lista.map((r) => (
-            <div key={r.id} className={`bg-white border rounded-xl p-4 flex gap-4 ${r.aceite ? 'border-[#1D9E75] border-l-[3px]' : 'border-slate-200'}`}>
-              <VotoCol votos={r.votos} meuVoto={r.meu_voto} onVote={(v) => votarResposta(r.id, v)} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-[10px] font-medium">{iniciais(r.autor_nome)}</span>
-                  <span className="text-[13px] font-medium text-slate-800">{r.autor_nome}</span>
-                  {ehStaff(r.autor_tipo) ? <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#FAEEDA] text-[#854F0B] font-medium">Admin</span> : null}
-                  {r.aceite ? <span className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#E1F5EE] text-[#0F6E56] flex items-center gap-1"><CircleCheck className="w-2.5 h-2.5" /> Solução aceite</span> : null}
+          {(() => {
+            const raizes = detalhe.respostas_lista.filter((r: any) => !r.resposta_pai_id);
+            const filhos = detalhe.respostas_lista.filter((r: any) => !!r.resposta_pai_id);
+            const renderFilho = (f: Resposta, paiNome: string, rootId: number) => (
+              <div key={f.id} className="flex gap-2 mt-2">
+                {/* linha vertical conectora */}
+                <div className="flex flex-col items-center shrink-0 w-5">
+                  <div className="w-px flex-1 bg-slate-300" />
                 </div>
-                {r.conteudo && <p className="text-[14px] text-slate-600 leading-relaxed whitespace-pre-wrap">{r.conteudo}</p>}
-                {r.ficheiro_url && (
-                  <FicheiroPreview ficheiroUrl={r.ficheiro_url} ficheiroNome={r.ficheiro_nome} />
-                )}
-                {podeResolver(detalhe) ? (
-                  <div className="mt-2.5">
-                    {r.aceite
-                      ? <button onClick={() => aceitarSolucao(null)} className="text-xs text-slate-400 hover:text-slate-600">Remover solução</button>
-                      : <button onClick={() => aceitarSolucao(r.id)} className="text-xs text-[#0F6E56] hover:underline flex items-center gap-1"><CircleCheck className="w-3.5 h-3.5" /> Marcar como solução</button>}
+                <div className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  {/* menção ao pai */}
+                  <div className="flex items-center gap-1.5 mb-1.5 text-[11px] text-slate-400">
+                    <CornerDownRight className="w-3 h-3 shrink-0" />
+                    <span>Em resposta a <span className="font-semibold text-slate-500">{paiNome}</span></span>
                   </div>
-                ) : null}
+                  <div className="flex gap-3">
+                    <VotoCol votos={f.votos} meuVoto={f.meu_voto} onVote={(v) => votarResposta(f.id, v)} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-[9px] font-medium">{iniciais(f.autor_nome)}</span>
+                        <span className="text-[12px] font-semibold text-slate-700">{f.autor_nome}</span>
+                        {ehStaff(f.autor_tipo) ? <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#FAEEDA] text-[#854F0B] font-medium">Admin</span> : null}
+                        {f.aceite ? <span className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#E1F5EE] text-[#0F6E56] flex items-center gap-1"><CircleCheck className="w-2.5 h-2.5" /> Solução aceite</span> : null}
+                      </div>
+                      {f.conteudo && <p className="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap">{f.conteudo}</p>}
+                      {f.ficheiro_url && <FicheiroPreview ficheiroUrl={f.ficheiro_url} ficheiroNome={f.ficheiro_nome} />}
+                      <div className="flex items-center gap-3 mt-1.5">
+                        {isAuthenticated && !detalhe.fechado && (
+                          <button
+                            onClick={() => {
+                              setInlineReplyId(rootId);
+                              setInlineReplyText(`@${f.autor_nome} `);
+                              setInlineReplyPlaceholder(`Responder a ${f.autor_nome}…`);
+                            }}
+                            className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-[#800020] transition-colors"
+                          >
+                            <CornerDownRight className="w-3 h-3" /> Responder
+                          </button>
+                        )}
+                        {detalhe.criado_por === Number((user as any)?.id) && (
+                          f.aceite
+                            ? <button onClick={() => aceitarSolucao(null)} className="text-[11px] text-slate-400 hover:text-slate-600">Remover solução</button>
+                            : <button onClick={() => aceitarSolucao(f.id)} className="flex items-center gap-0.5 text-[11px] text-[#0F6E56] hover:underline"><CircleCheck className="w-3 h-3" /> Solução</button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+
+            const renderResposta = (r: Resposta) => (
+              <div key={r.id}>
+                <div className={`bg-white border rounded-xl p-4 flex gap-4 ${r.aceite ? 'border-[#1D9E75] border-l-[3px]' : 'border-slate-200'}`}>
+                  <VotoCol votos={r.votos} meuVoto={r.meu_voto} onVote={(v) => votarResposta(r.id, v)} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-[10px] font-medium">{iniciais(r.autor_nome)}</span>
+                      <span className="text-[13px] font-medium text-slate-800">{r.autor_nome}</span>
+                      {ehStaff(r.autor_tipo) ? <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#FAEEDA] text-[#854F0B] font-medium">Admin</span> : null}
+                      {r.aceite ? <span className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#E1F5EE] text-[#0F6E56] flex items-center gap-1"><CircleCheck className="w-2.5 h-2.5" /> Solução aceite</span> : null}
+                    </div>
+                    {r.conteudo && <p className="text-[14px] text-slate-600 leading-relaxed whitespace-pre-wrap">{r.conteudo}</p>}
+                    {r.ficheiro_url && <FicheiroPreview ficheiroUrl={r.ficheiro_url} ficheiroNome={r.ficheiro_nome} />}
+                    <div className="flex items-center gap-3 mt-2">
+                      {isAuthenticated && !detalhe.fechado && (
+                        <button
+                          onClick={() => {
+                            if (inlineReplyId === r.id) { setInlineReplyId(null); setInlineReplyText(''); }
+                            else { setInlineReplyId(r.id); setInlineReplyText(''); setInlineReplyPlaceholder(`Responder a ${r.autor_nome}…`); }
+                          }}
+                          className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-[#800020] transition-colors"
+                        >
+                          <CornerDownRight className="w-3 h-3" /> Responder
+                        </button>
+                      )}
+                      {detalhe.criado_por === Number((user as any)?.id) && (
+                        r.aceite
+                          ? <button onClick={() => aceitarSolucao(null)} className="text-[11px] text-slate-400 hover:text-slate-600">Remover solução</button>
+                          : <button onClick={() => aceitarSolucao(r.id)} className="flex items-center gap-0.5 text-[11px] text-[#0F6E56] hover:underline"><CircleCheck className="w-3 h-3" /> Solução</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Respostas filhas com linha conectora */}
+                {filhos.filter((f: any) => f.resposta_pai_id === r.id).length > 0 && (
+                  <div className="ml-6 mt-0">
+                    {filhos.filter((f: any) => f.resposta_pai_id === r.id).map((f) => renderFilho(f, r.autor_nome, r.id))}
+                  </div>
+                )}
+
+                {/* Campo inline estilo Facebook */}
+                {inlineReplyId === r.id && !detalhe.fechado && (
+                  <div className="ml-6 flex gap-2 items-start mt-2">
+                    <div className="flex flex-col items-center shrink-0 w-5">
+                      <div className="w-px h-3 bg-slate-300" />
+                    </div>
+                    <div className="flex-1 flex gap-2 items-start">
+                      <span className="w-6 h-6 rounded-full bg-[#800020] text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+                        {iniciais(user?.name ?? '?')}
+                      </span>
+                      <div className="flex-1 bg-slate-100 rounded-2xl px-3 py-2 flex items-end gap-2">
+                        <textarea
+                          autoFocus
+                          value={inlineReplyText}
+                          onChange={(e) => setInlineReplyText(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void responderInline(r.id); } if (e.key === 'Escape') { setInlineReplyId(null); setInlineReplyText(''); } }}
+                          placeholder={inlineReplyPlaceholder || `Responder a ${r.autor_nome}…`}
+                          rows={1}
+                          className="flex-1 bg-transparent text-[13px] text-slate-800 resize-none outline-none leading-relaxed placeholder:text-slate-400"
+                        />
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button onClick={() => { setInlineReplyId(null); setInlineReplyText(''); }} className="text-slate-400 hover:text-slate-600 p-1"><X className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => responderInline(r.id)} disabled={aEnviarReply || !inlineReplyText.trim()} className="text-[#800020] hover:text-[#5C0016] disabled:opacity-40 p-1">
+                            <Send className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+            return raizes.map((r) => (
+              <div key={r.id}>
+                {renderResposta(r)}
+              </div>
+            ));
+          })()}
           {detalhe.respostas_lista.length === 0 ? (
             <div className="text-center py-8 text-sm text-slate-400">Ainda sem respostas. Sê o primeiro a responder.</div>
           ) : null}
         </div>
 
+        {!detalhe.fechado && (
         <div className="bg-white border border-slate-300 rounded-xl p-4 mt-4">
           <div className="text-xs font-medium text-slate-600 mb-2">A tua resposta</div>
           <textarea
@@ -562,6 +752,7 @@ export default function Forum() {
             </button>
           </div>
         </div>
+        )}
       </div>
     );
   }
@@ -573,13 +764,13 @@ export default function Forum() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <AuthPrompt open={showAuth} onOpenChange={setShowAuth} action={authAction} />
 
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-[20px] font-semibold text-slate-900">Fórum da comunidade</h1>
-          <p className="text-[13px] text-slate-400 mt-0.5">Debate, dúvidas e partilha sobre economia e história de Angola</p>
+      <div className="flex items-start justify-between gap-3 mb-5">
+        <div className="min-w-0">
+          <h1 className="text-[18px] sm:text-[20px] font-semibold text-slate-900">Fórum da comunidade</h1>
+          <p className="text-[12px] sm:text-[13px] text-slate-400 mt-0.5 hidden sm:block">Debate, dúvidas e partilha sobre economia e história de Angola</p>
         </div>
-        <button onClick={() => (isAuthenticated ? setShowNovo(true) : exigirLogin('criar um tópico'))} className="flex items-center gap-1.5 bg-[#800020] hover:bg-[#5C0016] text-white rounded-md px-3.5 py-2 text-[13px] font-medium">
-          <Plus className="w-4 h-4" /> Novo tópico
+        <button onClick={() => (isAuthenticated ? setShowNovo(true) : exigirLogin('criar um tópico'))} className="flex items-center gap-1.5 bg-[#800020] hover:bg-[#5C0016] text-white rounded-md px-3 sm:px-3.5 py-2 text-[13px] font-medium shrink-0">
+          <Plus className="w-4 h-4" /> <span className="hidden xs:inline">Novo </span>tópico
         </button>
       </div>
 
@@ -601,6 +792,23 @@ export default function Forum() {
               </button>
             ))}
           </div>
+          {hashtagsTendencia.length > 0 && (
+            <div className="bg-white border border-slate-200 rounded-xl p-3">
+              <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-2">Hashtags</div>
+              <div className="flex flex-wrap gap-1">
+                {hashtagsTendencia.map(([tag, n]) => (
+                  <button
+                    key={tag}
+                    onClick={() => setTagFiltro(tagFiltro === tag ? null : tag)}
+                    className={`text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors ${tagFiltro === tag ? 'bg-[#800020] text-white' : 'bg-[#FEE8E8] text-[#800020] hover:bg-[#FDD5D5]'}`}
+                  >
+                    #{tag}
+                    <span className={`ml-1 text-[10px] ${tagFiltro === tag ? 'text-white/70' : 'text-[#800020]/60'}`}>{n}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="bg-white border border-slate-200 rounded-xl p-3">
             <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-2">Estatísticas</div>
             <div className="flex justify-between text-[12px] text-slate-600 py-1 border-b border-slate-100"><span>Tópicos</span><span className="font-medium text-slate-800">{todos.length}</span></div>
@@ -616,10 +824,37 @@ export default function Forum() {
             <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Pesquisar tópicos..." className="flex-1 text-[13px] outline-none bg-transparent" />
           </div>
 
+          {/* Filtros mobile — categorias + hashtags (visível só abaixo de md) */}
+          <div className="md:hidden">
+            <div className="overflow-x-auto pb-1 -mx-1 px-1">
+              <div className="flex gap-1.5 w-max">
+                <button onClick={() => setCategoria('all')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-medium whitespace-nowrap border transition-colors ${categoria === 'all' ? 'bg-[#800020] text-white border-[#800020]' : 'bg-white text-slate-600 border-slate-300'}`}>
+                  Todas
+                </button>
+                {categoriasLista.map(({ nome }) => (
+                  <button key={nome} onClick={() => setCategoria(nome === categoria ? 'all' : nome)} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-medium whitespace-nowrap border transition-colors ${categoria === nome ? 'bg-[#800020] text-white border-[#800020]' : 'bg-white text-slate-600 border-slate-300'}`}>
+                    {nome}
+                  </button>
+                ))}
+                {hashtagsTendencia.slice(0, 8).map(([tag]) => (
+                  <button key={tag} onClick={() => setTagFiltro(tagFiltro === tag ? null : tag)} className={`flex items-center gap-0.5 px-2.5 py-1 rounded-full text-[12px] font-medium whitespace-nowrap border transition-colors ${tagFiltro === tag ? 'bg-[#800020] text-white border-[#800020]' : 'bg-[#FEE8E8] text-[#800020] border-[#FDD5D5]'}`}>
+                    #{tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {tagFiltro && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#FEE8E8] border border-[#FDD5D5] rounded-lg">
+              <span className="text-[12px] text-[#800020] font-medium">#{tagFiltro}</span>
+              <button onClick={() => setTagFiltro(null)} className="ml-auto text-[#800020]/60 hover:text-[#800020]"><X className="w-3.5 h-3.5" /></button>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <div className="flex gap-1 bg-slate-100 rounded-md p-0.5">
               {FILTROS.map((f) => (
-                <button key={f.id} onClick={() => setFiltro(f.id)} className={`text-[12px] px-3 py-1.5 rounded-[6px] ${filtro === f.id ? 'bg-white text-slate-900 font-medium border border-slate-200' : 'text-slate-500'}`}>{f.label}</button>
+                <button key={f.id} onClick={() => setFiltro(f.id)} className={`text-[12px] px-2.5 sm:px-3 py-1.5 rounded-[6px] ${filtro === f.id ? 'bg-white text-slate-900 font-medium border border-slate-200' : 'text-slate-500'}`}>{f.label}</button>
               ))}
             </div>
             <span className="text-[11px] text-slate-400">{visiveis.length} tópicos</span>
@@ -635,9 +870,9 @@ export default function Forum() {
           ) : (
             <>
               {fixados.length > 0 && <div className="text-[11px] text-slate-400 font-medium uppercase tracking-wide pt-1">Fixados</div>}
-              {fixados.map((t) => <Card key={t.id} t={t} onOpen={abrir} onVote={votarTopico} podeGerir={isProfessorOuAdmin} onDelete={apagarTopico} onPedirAcesso={pedirAcesso} aPedirAcesso={aPedirAcesso} onCancelarAcesso={cancelarAcesso} onAbrirPedidos={abrirModalPedidos} userId={(user as any)?.id ?? null} />)}
+              {fixados.map((t) => <Card key={t.id} t={t} onOpen={abrir} onVote={votarTopico} podeGerir={isProfessorOuAdmin} onDelete={apagarTopico} onPedirAcesso={pedirAcesso} aPedirAcesso={aPedirAcesso} onCancelarAcesso={cancelarAcesso} onAbrirPedidos={abrirModalPedidos} userId={(user as any)?.id ?? null} onTagClick={setTagFiltro} />)}
               {normais.length > 0 && <div className="text-[11px] text-slate-400 font-medium uppercase tracking-wide pt-2 flex items-center gap-1"><Flame className="w-3 h-3 text-[#BA7517]" /> Discussões</div>}
-              {normais.map((t) => <Card key={t.id} t={t} onOpen={abrir} onVote={votarTopico} podeGerir={isProfessorOuAdmin} onDelete={apagarTopico} onPedirAcesso={pedirAcesso} aPedirAcesso={aPedirAcesso} onCancelarAcesso={cancelarAcesso} onAbrirPedidos={abrirModalPedidos} userId={(user as any)?.id ?? null} />)}
+              {normais.map((t) => <Card key={t.id} t={t} onOpen={abrir} onVote={votarTopico} podeGerir={isProfessorOuAdmin} onDelete={apagarTopico} onPedirAcesso={pedirAcesso} aPedirAcesso={aPedirAcesso} onCancelarAcesso={cancelarAcesso} onAbrirPedidos={abrirModalPedidos} userId={(user as any)?.id ?? null} onTagClick={setTagFiltro} />)}
             </>
           )}
         </main>
@@ -693,7 +928,7 @@ export default function Forum() {
 
       {/* Modal novo tópico */}
       <Dialog open={showNovo} onOpenChange={setShowNovo}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Criar novo tópico</DialogTitle>
             <DialogDescription className="sr-only">Formulário para publicar um novo tópico no fórum</DialogDescription>
@@ -703,7 +938,7 @@ export default function Forum() {
               <label className="block text-xs font-medium text-slate-600 mb-1.5">Título</label>
               <input value={novo.titulo} onChange={(e) => setNovo({ ...novo, titulo: e.target.value })} placeholder="Escreve um título claro e específico..." className="w-full border border-slate-200 rounded-md px-3 py-2 text-[13px] bg-slate-50 outline-none focus:border-[#A0002A]" />
             </div>
-            <div className="flex gap-2.5">
+            <div className="flex flex-col sm:flex-row gap-2.5">
               <div className="flex-1">
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">Categoria</label>
                 <select value={novo.categoria} onChange={(e) => setNovo({ ...novo, categoria: e.target.value })} className="w-full border border-slate-200 rounded-md px-3 py-2 text-[13px] bg-slate-50 outline-none focus:border-[#A0002A]">
@@ -712,7 +947,35 @@ export default function Forum() {
               </div>
               <div className="flex-1">
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">Tags (opcional)</label>
-                <input value={novo.tags} onChange={(e) => setNovo({ ...novo, tags: e.target.value })} placeholder="ex: sonangol, inflação" className="w-full border border-slate-200 rounded-md px-3 py-2 text-[13px] bg-slate-50 outline-none focus:border-[#A0002A]" />
+                <div
+                  className="min-h-[36px] w-full border border-slate-200 rounded-md px-2 py-1.5 bg-slate-50 focus-within:border-[#A0002A] flex flex-wrap gap-1 cursor-text"
+                  onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement)?.focus()}
+                >
+                  {novasTags.map((tag) => (
+                    <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FEE8E8] text-[#800020] text-[11px] font-medium">
+                      #{tag}
+                      <button type="button" onClick={() => setNovasTags((p) => p.filter((t) => t !== tag))} className="hover:text-[#5C0016] leading-none">×</button>
+                    </span>
+                  ))}
+                  <input
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value.replace(/\s/g, ''))}
+                    onKeyDown={(e) => {
+                      if ((e.key === 'Enter' || e.key === ',' || e.key === ' ') && tagInput.trim()) {
+                        e.preventDefault();
+                        const t = tagInput.replace(/^#+/, '').trim().toLowerCase();
+                        if (t && !novasTags.includes(t) && novasTags.length < 10) setNovasTags((p) => [...p, t]);
+                        setTagInput('');
+                      }
+                      if (e.key === 'Backspace' && !tagInput && novasTags.length) {
+                        setNovasTags((p) => p.slice(0, -1));
+                      }
+                    }}
+                    placeholder={novasTags.length === 0 ? '#sonangol  #inflação…' : ''}
+                    className="flex-1 min-w-[80px] bg-transparent text-[13px] outline-none placeholder:text-slate-400"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">Enter ou vírgula para adicionar · Backspace para remover</p>
               </div>
             </div>
             <div>
@@ -734,13 +997,14 @@ export default function Forum() {
 }
 
 // ── Card de tópico ──────────────────────────────────────────────────────────
-function Card({ t, onOpen, onVote, podeGerir, onDelete, onPedirAcesso, aPedirAcesso, onCancelarAcesso, onAbrirPedidos, userId }: {
+function Card({ t, onOpen, onVote, podeGerir, onDelete, onPedirAcesso, aPedirAcesso, onCancelarAcesso, onAbrirPedidos, userId, onTagClick }: {
   t: Topico; onOpen: (id: number) => void; onVote: (id: number, v: number) => void;
   podeGerir?: boolean; onDelete?: (id: number) => void;
   onPedirAcesso?: (id: number) => void; aPedirAcesso?: boolean;
   onCancelarAcesso?: (id: number) => void;
   onAbrirPedidos?: (t: Topico, e: React.MouseEvent) => void;
   userId?: number | null;
+  onTagClick?: (tag: string) => void;
 }) {
   const accent = t.fixado ? 'border-l-[3px] border-l-[#800020]' : t.resolvido ? 'border-l-[3px] border-l-[#1D9E75]' : '';
   const ehPrivado = t.tipo_privacidade === 'privado';
@@ -789,6 +1053,20 @@ function Card({ t, onOpen, onVote, podeGerir, onDelete, onPedirAcesso, aPedirAce
                 <UserCheck className="w-3.5 h-3.5" /> Pedir acesso
               </button>
             )}
+          </div>
+        )}
+        {/* Primeiras 3 hashtags */}
+        {t.tags && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {t.tags.split(',').map(s => s.trim().toLowerCase()).filter(Boolean).slice(0, 3).map(tag => (
+              <button
+                key={tag}
+                onClick={(e) => { e.stopPropagation(); onTagClick?.(tag); }}
+                className="text-[11px] px-1.5 py-0.5 rounded-full bg-[#FEE8E8] text-[#800020] hover:bg-[#FDD5D5] transition-colors font-medium"
+              >
+                #{tag}
+              </button>
+            ))}
           </div>
         )}
         <div className="flex items-center gap-3 flex-wrap">

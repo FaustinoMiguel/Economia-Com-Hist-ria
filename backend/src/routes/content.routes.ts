@@ -10,6 +10,7 @@ import {
   guardarConteudo,
   listarComentarios,
   listarConteudos,
+  listarPedidosDoMeuConteudo,
   listarPlaylist,
   obterEstadoUsuario,
   reagirConteudo,
@@ -17,10 +18,12 @@ import {
   removerComentario,
   removerConteudo,
   removerPlaylist,
+  responderPedidoAcesso,
   solicitarAcessoConteudo,
   uploadConteudoFicheiro,
 } from '../controllers/content.controller.js'
 import { authenticate, authenticateOptional } from '../middlewares/authenticate.js'
+import { requireProfessorOuAdmin } from '../middlewares/requireRole.js'
 import { uploadContent } from '../middlewares/uploadContent.js'
 
 export const contentRouter = Router()
@@ -32,6 +35,9 @@ contentRouter.get('/me/state', authenticate, obterEstadoUsuario)
 contentRouter.get('/me/playlist', authenticate, listarPlaylist)
 contentRouter.post('/me/playlist', authenticate, adicionarPlaylist)
 contentRouter.delete('/me/playlist/:contentId/:episodeId', authenticate, removerPlaylist)
+// Pedidos de acesso Jindungo — só o criador do conteúdo pode ver e responder
+contentRouter.get('/me/access-requests', authenticate, requireProfessorOuAdmin, listarPedidosDoMeuConteudo)
+contentRouter.patch('/access-requests/:pedidoId', authenticate, requireProfessorOuAdmin, responderPedidoAcesso)
 contentRouter.post('/:id/view', registrarVisualizacao)
 contentRouter.post('/:id/reaction', authenticate, reagirConteudo)
 contentRouter.post('/:id/save', authenticate, guardarConteudo)

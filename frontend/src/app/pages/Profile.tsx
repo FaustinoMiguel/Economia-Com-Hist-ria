@@ -2,7 +2,7 @@
 import { apiRequest } from '../services/api';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { User, Mail, MapPin, Calendar, Trophy, Award, TrendingUp, BarChart3, Medal, Edit, GraduationCap, BookOpen, FileText, MessageSquare, Camera, Upload, Trash2, Save, X, Eye, Clock } from 'lucide-react';
+import { User, Mail, MapPin, Calendar, Trophy, BarChart3, Edit, GraduationCap, BookOpen, FileText, MessageSquare, Camera, Trash2, Save, X, Eye, Clock, Lock, KeyRound, AlertCircle } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Button } from '../components/ui/button';
@@ -52,6 +52,14 @@ export default function Profile() {
     institution: '',
     course: ''
   });
+  const [senhaAtual, setSenhaAtual] = useState('');
+  const [novaSenha, setNovaSenha] = useState('');
+  const [confirmarSenha, setConfirmarSenha] = useState('');
+  const [aAlterarSenha, setAAlterarSenha] = useState(false);
+  const [erroSenha, setErroSenha] = useState('');
+  const [showEsqueceuSenha, setShowEsqueceuSenha] = useState(false);
+  const [aEnviarReset, setAEnviarReset] = useState(false);
+  const [resetEnviado, setResetEnviado] = useState(false);
 
   // Categorias disponíveis para Artigos e Tópicos
   const categoriasArtigos = [
@@ -302,6 +310,37 @@ export default function Profile() {
     }
   };
 
+  const handleAlterarSenha = async () => {
+    setErroSenha('');
+    if (!senhaAtual) { setErroSenha('Introduz a senha actual.'); return; }
+    if (novaSenha.length < 8) { setErroSenha('A nova senha deve ter pelo menos 8 caracteres.'); return; }
+    if (novaSenha !== confirmarSenha) { setErroSenha('As senhas não coincidem.'); return; }
+    setAAlterarSenha(true);
+    try {
+      await apiRequest('/perfil/change-password', { method: 'POST', json: { senhaAtual, novaSenha } });
+      setSenhaAtual(''); setNovaSenha(''); setConfirmarSenha('');
+      alert('Senha alterada com sucesso!');
+    } catch (e: any) {
+      const msg = e?.message ?? '';
+      if (msg.includes('incorrecta') || msg.includes('incorrect') || msg.includes('401')) {
+        setErroSenha('Senha actual incorrecta.');
+        // Não abre o diálogo automaticamente — o utilizador clica no link se quiser
+      } else {
+        setErroSenha(msg || 'Não foi possível alterar a senha.');
+      }
+    } finally { setAAlterarSenha(false); }
+  };
+
+  const handleEnviarReset = async () => {
+    if (!user?.email) return;
+    setAEnviarReset(true);
+    try {
+      await apiRequest('/auth/forgot-password', { method: 'POST', json: { email: user.email } });
+      setResetEnviado(true);
+    } catch { setResetEnviado(true); } // mostra sempre sucesso por segurança
+    finally { setAEnviarReset(false); }
+  };
+
   // Função para salvar edição do perfil — persiste na base de dados (/perfil)
   const handleSaveProfile = async () => {
     if (!user) return;
@@ -488,95 +527,58 @@ export default function Profile() {
           </Card>
         </div>
 
-        {/* Detailed Information */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Personal Information */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <User className="w-5 h-5 text-[#800020]" />
-                Informações Pessoais
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-start justify-between p-3 bg-slate-50 rounded-lg">
-                <div>
-                  <p className="text-xs text-slate-600 mb-0.5">Nome Completo</p>
-                  <p className="font-semibold text-slate-900 text-sm">{editedUser.name}</p>
-                </div>
+        {/* Detailed Information — full width */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <User className="w-5 h-5 text-[#800020]" />
+              Informações Pessoais
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <p className="text-xs text-slate-500 mb-0.5">Nome Completo</p>
+                <p className="font-semibold text-slate-900 text-sm">{editedUser.name}</p>
               </div>
-
-              <div className="flex items-start justify-between p-3 bg-slate-50 rounded-lg">
-                <div>
-                  <p className="text-xs text-slate-600 mb-0.5">Email</p>
-                  <p className="font-semibold text-slate-900 text-sm">{editedUser.email}</p>
-                </div>
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <p className="text-xs text-slate-500 mb-0.5">Email</p>
+                <p className="font-semibold text-slate-900 text-sm truncate">{editedUser.email}</p>
               </div>
-
-              <div className="flex items-start justify-between p-3 bg-slate-50 rounded-lg">
-                <div>
-                  <p className="text-xs text-slate-600 mb-0.5">Província</p>
-                  <p className="font-semibold text-slate-900 text-sm flex items-center gap-2">
-                    <MapPin className="w-3.5 h-3.5 text-[#800020]" />
-                    {editedUser.province}
-                  </p>
-                </div>
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <p className="text-xs text-slate-500 mb-0.5">Província</p>
+                <p className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-[#800020]" />{editedUser.province}
+                </p>
               </div>
-
-              <div className="flex items-start justify-between p-3 bg-slate-50 rounded-lg">
-                <div>
-                  <p className="text-xs text-slate-600 mb-0.5">Universidade/Instituição</p>
-                  <p className="font-semibold text-slate-900 text-sm flex items-center gap-2">
-                    <GraduationCap className="w-3.5 h-3.5 text-[#800020]" />
-                    {editedUser.institution || 'Não informado'}
-                  </p>
-                </div>
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <p className="text-xs text-slate-500 mb-0.5">Universidade/Instituição</p>
+                <p className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
+                  <GraduationCap className="w-3.5 h-3.5 text-[#800020]" />{editedUser.institution || 'Não informado'}
+                </p>
               </div>
-
-              <div className="flex items-start justify-between p-3 bg-slate-50 rounded-lg">
-                <div>
-                  <p className="text-xs text-slate-600 mb-0.5">Curso</p>
-                  <p className="font-semibold text-slate-900 text-sm flex items-center gap-2">
-                    <BookOpen className="w-3.5 h-3.5 text-[#800020]" />
-                    {editedUser.course || 'Não informado'}
-                  </p>
-                </div>
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <p className="text-xs text-slate-500 mb-0.5">Curso</p>
+                <p className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-[#800020]" />{editedUser.course || 'Não informado'}
+                </p>
               </div>
-
-              <div className="flex items-start justify-between p-3 bg-slate-50 rounded-lg">
-                <div>
-                  <p className="text-xs text-slate-600 mb-0.5">Membro desde</p>
-                  <p className="font-semibold text-slate-900 text-sm">{formattedDate}</p>
-                </div>
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <p className="text-xs text-slate-500 mb-0.5">Membro desde</p>
+                <p className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-[#800020]" />{formattedDate}
+                </p>
               </div>
-
-              <Button 
-                onClick={() => setShowEditProfile(true)}
-                className="w-full bg-gradient-to-r from-[#800020] to-[#5C0016] hover:from-[#5C0016] hover:to-[#5C0016] text-white"
-              >
-                <Edit className="w-4 h-4 mr-2" />
-                Editar Perfil
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Ranking & Achievements */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg text-[#0a0a0a7a]">
-                <Clock className="w-5 h-5 text-yellow-600" />
-                Últimas Conquistas (Em Breve)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="text-center py-8 text-slate-500">
-                <Medal className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">Estamos a preparar novas conquistas para si!</p>
-                <p className="text-xs text-slate-400 mt-2">Em breve terá acesso a medalhas e reconhecimentos exclusivos.</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+            <Button
+              onClick={() => setShowEditProfile(true)}
+              className="bg-gradient-to-r from-[#800020] to-[#5C0016] hover:from-[#5C0016] hover:to-[#5C0016] text-white"
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Editar Perfil
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Provincial Ranking */}
         {user.province && ranking.filter(r => r.province === user.province).length > 0 && (
@@ -903,9 +905,41 @@ export default function Profile() {
         </DialogContent>
       </Dialog>
 
+      {/* Esqueceu a senha — diálogo de confirmação */}
+      <Dialog open={showEsqueceuSenha} onOpenChange={(o) => { setShowEsqueceuSenha(o); if (!o) setResetEnviado(false); }}>
+        <DialogContent className="w-[95vw] sm:max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <AlertCircle className="w-5 h-5 text-amber-500" />
+              {resetEnviado ? 'Email enviado!' : 'Esqueceste a senha?'}
+            </DialogTitle>
+            <DialogDescription className="sr-only">Recuperação de senha</DialogDescription>
+          </DialogHeader>
+          {resetEnviado ? (
+            <p className="text-sm text-slate-600 py-2">
+              Enviámos um link de recuperação para <strong>{user?.email}</strong>. Verifica a tua caixa de entrada.
+            </p>
+          ) : (
+            <p className="text-sm text-slate-600 py-2">
+              A senha actual que introduziste está incorrecta. Queres receber um email para recuperar a senha?
+            </p>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setShowEsqueceuSenha(false); setResetEnviado(false); }}>
+              {resetEnviado ? 'Fechar' : 'Cancelar'}
+            </Button>
+            {!resetEnviado && (
+              <Button onClick={handleEnviarReset} disabled={aEnviarReset} className="bg-[#800020] hover:bg-[#5C0016] text-white">
+                {aEnviarReset ? 'A enviar…' : 'Enviar email'}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Profile Modal */}
-      <Dialog open={showEditProfile} onOpenChange={setShowEditProfile}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
+      <Dialog open={showEditProfile} onOpenChange={(o) => { setShowEditProfile(o); if (!o) { setSenhaAtual(''); setNovaSenha(''); setConfirmarSenha(''); setErroSenha(''); } }}>
+        <DialogContent className="w-[95vw] sm:max-w-md rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
               <Edit className="w-5 h-5 text-[#800020]" />
@@ -1005,6 +1039,73 @@ export default function Profile() {
                 onChange={(e) => setEditedUser({ ...editedUser, course: e.target.value })}
                 className="rounded-lg"
               />
+            </div>
+
+            {/* Separador de senha */}
+            <div className="pt-2 border-t border-slate-100">
+              <p className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-3">
+                <Lock className="w-4 h-4 text-[#800020]" /> Alterar Senha
+              </p>
+              <div className="space-y-2.5">
+                <div className="space-y-1">
+                  <Label className="text-xs text-slate-600">Senha actual</Label>
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    value={senhaAtual}
+                    onChange={(e) => { setSenhaAtual(e.target.value); setErroSenha(''); setShowEsqueceuSenha(false); }}
+                    className="rounded-lg"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-slate-600">Nova senha</Label>
+                  <Input
+                    type="password"
+                    placeholder="Mínimo 8 caracteres"
+                    value={novaSenha}
+                    onChange={(e) => { setNovaSenha(e.target.value); setErroSenha(''); }}
+                    className="rounded-lg"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-slate-600">Confirmar nova senha</Label>
+                  <Input
+                    type="password"
+                    placeholder="Repete a nova senha"
+                    value={confirmarSenha}
+                    onChange={(e) => { setConfirmarSenha(e.target.value); setErroSenha(''); }}
+                    className="rounded-lg"
+                  />
+                </div>
+                {erroSenha && (
+                  <div className="flex items-start gap-2 text-xs text-[#800020] bg-[#FFF2F2] border border-[#FDD5D5] px-3 py-2 rounded-lg">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      {erroSenha}
+                      {erroSenha.includes('incorrecta') && (
+                        <> · <button
+                          type="button"
+                          onClick={() => setShowEsqueceuSenha(true)}
+                          className="underline font-medium hover:text-[#5C0016]"
+                        >
+                          Esqueceste a senha?
+                        </button></>
+                      )}
+                    </span>
+                  </div>
+                )}
+                {senhaAtual && (
+                  <Button
+                    onClick={handleAlterarSenha}
+                    disabled={aAlterarSenha}
+                    variant="outline"
+                    className="w-full border-[#800020] text-[#800020] hover:bg-[#FFF2F2] rounded-lg"
+                  >
+                    <KeyRound className="w-4 h-4 mr-2" />
+                    {aAlterarSenha ? 'A alterar…' : 'Alterar Senha'}
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 

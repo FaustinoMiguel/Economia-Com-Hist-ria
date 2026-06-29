@@ -45,7 +45,9 @@ export async function apiRequest<T>(path: string, options: ApiOptions = {}): Pro
   })
 
   // Token expirado — limpa a sessão local
-  if (response.status === 401) {
+  // Excepção: endpoints que usam 401 para indicar dados errados (não sessão expirada)
+  const skipLogout = path.includes('/change-password') || path.includes('/forgot-password')
+  if (response.status === 401 && !skipLogout) {
     removeToken()
     localStorage.removeItem('currentUser')
     // Redireciona para login se não estiver já lá

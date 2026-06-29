@@ -109,9 +109,13 @@ export async function getMensagens(req: Request, res: Response) {
   params.push(limite)
 
   const [mensagens] = await pool.query<RowDataPacket[]>(
-    `SELECT m.id, m.mensagem, m.ficheiro_url, m.ficheiro_nome, m.criado_em, u.id AS autor_id, u.nome AS autor_nome, u.avatar_url AS autor_avatar
+    `SELECT m.id, m.mensagem_pai_id, m.mensagem, m.ficheiro_url, m.ficheiro_nome, m.criado_em,
+            u.id AS autor_id, u.nome AS autor_nome, u.avatar_url AS autor_avatar,
+            pm.mensagem AS pai_mensagem, pm.ficheiro_nome AS pai_ficheiro_nome, pu.nome AS pai_autor_nome
      FROM mensagem_sala m
      JOIN utilizador u ON u.id = m.autor_id
+     LEFT JOIN mensagem_sala pm ON pm.id = m.mensagem_pai_id
+     LEFT JOIN utilizador pu ON pu.id = pm.autor_id
      WHERE m.sala_id = ? ${cursor}
      ORDER BY m.criado_em DESC
      LIMIT ?`,
@@ -125,7 +129,7 @@ export async function getMensagens(req: Request, res: Response) {
 export async function postMensagem(req: Request, res: Response) {
   const userId       = req.user!.userId
   const salaId       = req.params.id
-  const { mensagem } = req.body ?? {}
+  const { mensagem, mensagem_pai_id = null } = req.body ?? {}
   const ficheiro     = (req as any).file as Express.Multer.File | undefined
   const ficheiroUrl  = ficheiro ? `/uploads/forum/${ficheiro.filename}` : null
   const ficheiroNome = ficheiro ? ficheiro.originalname : null
@@ -153,13 +157,19 @@ export async function postMensagem(req: Request, res: Response) {
   }
 
   const [result] = await pool.query<ResultSetHeader>(
-    'INSERT INTO mensagem_sala (sala_id, autor_id, mensagem, ficheiro_url, ficheiro_nome) VALUES (?, ?, ?, ?, ?)',
-    [salaId, userId, mensagem?.trim() || '', ficheiroUrl, ficheiroNome],
+    'INSERT INTO mensagem_sala (sala_id, autor_id, mensagem_pai_id, mensagem, ficheiro_url, ficheiro_nome) VALUES (?, ?, ?, ?, ?, ?)',
+    [salaId, userId, mensagem_pai_id || null, mensagem?.trim() || '', ficheiroUrl, ficheiroNome],
   )
 
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT m.id, m.mensagem, m.ficheiro_url, m.ficheiro_nome, m.criado_em, u.id AS autor_id, u.nome AS autor_nome, u.avatar_url AS autor_avatar
-     FROM mensagem_sala m JOIN utilizador u ON u.id = m.autor_id WHERE m.id = ?`,
+    `SELECT m.id, m.mensagem_pai_id, m.mensagem, m.ficheiro_url, m.ficheiro_nome, m.criado_em,
+            u.id AS autor_id, u.nome AS autor_nome, u.avatar_url AS autor_avatar,
+            pm.mensagem AS pai_mensagem, pm.ficheiro_nome AS pai_ficheiro_nome, pu.nome AS pai_autor_nome
+     FROM mensagem_sala m
+     JOIN utilizador u ON u.id = m.autor_id
+     LEFT JOIN mensagem_sala pm ON pm.id = m.mensagem_pai_id
+     LEFT JOIN utilizador pu ON pu.id = pm.autor_id
+     WHERE m.id = ?`,
     [result.insertId],
   )
 

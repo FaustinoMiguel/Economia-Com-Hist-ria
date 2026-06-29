@@ -139,6 +139,10 @@ export default function AdminDashboard() {
   // Pesquisa e filtro de utilizadores
   const [userSearch, setUserSearch] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState('todos');
+
+  // Pesquisa e filtro de conteúdos
+  const [contentFilter, setContentFilter] = useState('todos');
+  const [contentSearch, setContentSearch] = useState('');
   const [savingArticle, setSavingArticle] = useState(false);
   const [savingTopic, setSavingTopic] = useState(false);
   const [deletingContent, setDeletingContent] = useState(false);
@@ -842,7 +846,7 @@ export default function AdminDashboard() {
 
         {/* Tabs Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 h-auto bg-transparent">
+          <TabsList className="flex flex-wrap gap-2 h-auto bg-transparent justify-start">
             <TabsTrigger value="overview" className="data-[state=active]:bg-[#800020] data-[state=active]:text-white">
               <LayoutDashboard className="w-4 h-4 mr-2" /> Visão Geral
             </TabsTrigger>
@@ -910,13 +914,15 @@ export default function AdminDashboard() {
                       {totalUsers} utilizador{totalUsers !== 1 ? 'es' : ''} registado{totalUsers !== 1 ? 's' : ''}
                     </CardDescription>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {['todos','subscrito','professor','admin','superadmin'].map(r => (
-                      <button key={r} onClick={() => setUserRoleFilter(r)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${userRoleFilter === r ? 'bg-[#800020] text-white border-[#800020]' : 'bg-white text-slate-600 border-slate-300 hover:border-[#FBBCB8]'}`}>
-                        {r === 'todos' ? 'Todos' : r === 'subscrito' ? 'Subscritos' : r === 'professor' ? 'Professores' : r === 'admin' ? 'Admins' : 'Super-admins'}
-                      </button>
-                    ))}
+                  <div className="overflow-x-auto -mx-1 px-1">
+                    <div className="flex gap-1.5 w-max sm:w-auto sm:flex-wrap">
+                      {['todos','subscrito','professor','admin','superadmin'].map(r => (
+                        <button key={r} onClick={() => setUserRoleFilter(r)}
+                          className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${userRoleFilter === r ? 'bg-[#800020] text-white border-[#800020]' : 'bg-white text-slate-600 border-slate-300 hover:border-[#FBBCB8]'}`}>
+                          {r === 'todos' ? 'Todos' : r === 'subscrito' ? 'Subscritos' : r === 'professor' ? 'Professores' : r === 'admin' ? 'Admins' : 'Super-admins'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <div className="relative mt-3">
@@ -1115,38 +1121,104 @@ export default function AdminDashboard() {
           </TabsContent>
 
           {/* Contents Tab */}
-          <TabsContent value="contents" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><FileText className="w-5 h-5 text-purple-600" /> Gestão de Conteúdos</CardTitle>
-                <CardDescription>{totalContents} conteúdos publicados</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {contents.map((content) => (
-                    <div key={content.id} className="border rounded-lg p-4 hover:bg-slate-50 transition-colors">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <h3 className="font-semibold text-slate-900">{content.title}</h3>
-                            <Badge className="flex items-center gap-1">{getContentTypeIcon(content.type)} {getContentTypeLabel(content.type)}</Badge>
-                            {content.type === 'topico' && (<Badge variant={content.topicType === 'public' ? 'default' : 'secondary'} className="flex items-center gap-1">{content.topicType === 'public' ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}{content.topicType === 'public' ? 'Público' : 'Privado'}</Badge>)}
-                            {content.type === 'podcast' && content.episodes && (<Badge variant="outline" className="flex items-center gap-1"><List className="w-3 h-3" /> {content.episodes.length} eps</Badge>)}
-                          </div>
-                          <p className="text-sm text-slate-600 mb-2">{content.description}</p>
-                          <div className="flex items-center gap-4 text-xs text-slate-500"><span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(content.createdAt).toLocaleDateString('pt-PT')}</span><span>Por {content.createdBy}</span></div>
-                        </div>
-                        <div className="flex gap-2">
-                          {content.type === 'topico' ? (<Button variant="outline" size="sm" onClick={() => handleEditTopic(content)}><Edit className="w-4 h-4" /></Button>) : (<Button variant="outline" size="sm" onClick={() => handleEditArticle(content)}><Edit className="w-4 h-4" /></Button>)}
-                          <Button variant="destructive" size="sm" onClick={() => handleDeleteContent(content.id)}><Trash2 className="w-4 h-4" /></Button>
+          <TabsContent value="contents" className="space-y-4">
+            {(() => {
+              const typeColors: Record<string, string> = {
+                texto_normal:   'bg-blue-50 border-blue-200 text-blue-700',
+                texto_jindungo: 'bg-amber-50 border-amber-200 text-amber-700',
+                video:          'bg-red-50 border-red-200 text-red-700',
+                podcast:        'bg-purple-50 border-purple-200 text-purple-700',
+                topico:         'bg-green-50 border-green-200 text-green-700',
+              };
+              const filtered = contents.filter(c => {
+                const matchType = contentFilter === 'todos' || c.type === contentFilter;
+                const q = contentSearch.toLowerCase();
+                const matchQ = !q || c.title.toLowerCase().includes(q) || (c.description ?? '').toLowerCase().includes(q) || c.createdBy.toLowerCase().includes(q);
+                return matchType && matchQ;
+              });
+              return (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <FileText className="w-5 h-5 text-purple-600" /> Gestão de Conteúdos
+                        </CardTitle>
+                        <CardDescription className="mt-0.5">{filtered.length} de {totalContents} conteúdos</CardDescription>
+                      </div>
+                      <div className="overflow-x-auto -mx-1 px-1">
+                        <div className="flex gap-1.5 w-max sm:w-auto sm:flex-wrap">
+                          {['todos','texto_normal','texto_jindungo','video','podcast','topico'].map(t => (
+                            <button key={t} onClick={() => setContentFilter(t)}
+                              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${contentFilter === t ? 'bg-[#800020] text-white border-[#800020]' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}>
+                              {t === 'todos' ? 'Todos' : t === 'texto_normal' ? 'Texto' : t === 'texto_jindungo' ? 'Jindungo' : t === 'video' ? 'Vídeo' : t === 'podcast' ? 'Podcast' : 'Tópico'}
+                            </button>
+                          ))}
                         </div>
                       </div>
                     </div>
-                  ))}
-                  {contents.length === 0 && (<div className="text-center py-8 text-slate-500"><FileText className="w-12 h-12 mx-auto mb-4 opacity-30" /><p>Nenhum conteúdo criado ainda</p></div>)}
-                </div>
-              </CardContent>
-            </Card>
+                    <div className="relative mt-2">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      <input type="text" placeholder="Pesquisar por título, descrição ou autor..." value={contentSearch} onChange={e => setContentSearch(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#A0002A] bg-white" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {filtered.length === 0 ? (
+                      <div className="text-center py-12 text-slate-400">
+                        <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                        <p className="text-sm">{contentSearch || contentFilter !== 'todos' ? 'Nenhum conteúdo encontrado.' : 'Nenhum conteúdo publicado ainda.'}</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-100">
+                        {filtered.map(content => (
+                          <div key={content.id} className="flex items-center gap-4 py-3.5 hover:bg-slate-50 rounded-lg px-2 -mx-2 transition-colors group">
+                            {/* Ícone tipo */}
+                            <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${typeColors[content.type] ?? 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                              {getContentTypeIcon(content.type)}
+                            </div>
+                            {/* Info */}
+                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => content.type === 'topico' ? navigate('/forum') : navigate(`/explorar/${content.id}`)}>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-slate-900 text-sm truncate">{content.title}</span>
+                                {content.type === 'topico' && (
+                                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${content.topicType === 'public' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                                    {content.topicType === 'public' ? 'Público' : 'Privado'}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-slate-500 truncate mt-0.5">{content.description}</p>
+                              <div className="flex items-center gap-3 mt-1">
+                                <span className="text-[11px] text-slate-400 flex items-center gap-0.5"><Calendar className="w-3 h-3" />{new Date(content.createdAt).toLocaleDateString('pt-PT')}</span>
+                                <span className="text-[11px] text-slate-400">Por {content.createdBy}</span>
+                              </div>
+                            </div>
+                            {/* Acções */}
+                            <div className="flex items-center gap-1.5 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity">
+                              <Button variant="ghost" size="sm" title="Ver preview"
+                                onClick={() => content.type === 'topico' ? navigate('/forum') : navigate(`/explorar/${content.id}`)}
+                                className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50">
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" title="Editar"
+                                onClick={() => content.type === 'topico' ? handleEditTopic(content) : handleEditArticle(content)}
+                                className="h-8 w-8 p-0 text-slate-400 hover:text-[#800020] hover:bg-[#FFF2F2]">
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" title="Eliminar"
+                                onClick={() => handleDeleteContent(content.id)}
+                                className="h-8 w-8 p-0 text-slate-400 hover:text-[#800020] hover:bg-[#FFF2F2]">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </TabsContent>
 
           {/* Ranking Tab */}

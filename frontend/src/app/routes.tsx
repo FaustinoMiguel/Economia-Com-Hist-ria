@@ -38,6 +38,7 @@ export const router = createBrowserRouter([
       { path: 'resources',             Component: Resources },
       { path: 'forum',                 Component: Forum },
       { path: 'explorar',              Component: Explorar },
+      { path: 'explorar/:id',          Component: Explorar },
       { path: 'perguntas-frequentes',  Component: PerguntasFrequentes },
       { path: 'salas',                 Component: SalasDiscussao },
       {

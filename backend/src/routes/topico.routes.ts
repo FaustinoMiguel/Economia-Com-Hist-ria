@@ -10,6 +10,7 @@ import {
   listarPedidosAcesso,
   responderPedidoAcesso,
   votarTopico,
+  fecharTopico,
   fixarTopico,
   resolverTopico,
 } from '../controllers/topico.controller.js'
@@ -31,6 +32,9 @@ topicoRouter.post('/:id/votar', authenticate, requireAuth, votarTopico)
 
 // Marcar/limpar solução aceite — autor do tópico ou admin (verificado no controller)
 topicoRouter.post('/:id/resolver', authenticate, requireAuth, resolverTopico)
+
+// Fechar/reabrir — criador ou admin (verificado no controller)
+topicoRouter.post('/:id/fechar', authenticate, requireAuth, fecharTopico)
 
 // Fixar/desafixar — apenas admin
 topicoRouter.post('/:id/fixar', authenticate, requireAdmin, fixarTopico)

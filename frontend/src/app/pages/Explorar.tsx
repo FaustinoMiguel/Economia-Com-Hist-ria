@@ -254,6 +254,43 @@ export default function Explorar() {
   const [modoAdicao, setModoAdicao] = useState<"editor" | "preview">("editor");
   const [addContentSubmitAttempted, setAddContentSubmitAttempted] = useState(false);
 
+  // Painel de pedidos de acesso Jindungo (para o criador)
+  const [isAccessRequestsModalOpen, setIsAccessRequestsModalOpen] = useState(false);
+  const [accessRequestsList, setAccessRequestsList] = useState<any[]>([]);
+  const [isLoadingAccessRequests, setIsLoadingAccessRequests] = useState(false);
+  const [respondingRequestId, setRespondingRequestId] = useState<number | null>(null);
+
+  const carregarPedidosAcesso = async () => {
+    setIsLoadingAccessRequests(true);
+    try {
+      const res = await api.get('/content/me/access-requests');
+      setAccessRequestsList(res.data.pedidos || []);
+    } catch (error) {
+      handleAndShowError(error, "Carregar pedidos de acesso");
+    } finally {
+      setIsLoadingAccessRequests(false);
+    }
+  };
+
+  const responderPedidoAcesso = async (pedidoId: number, status: 'aprovado' | 'rejeitado', observacoes?: string) => {
+    setRespondingRequestId(pedidoId);
+    try {
+      await api.patch(`/content/access-requests/${pedidoId}`, { status, observacoes: observacoes || null });
+      setAccessRequestsList(prev =>
+        prev.map(p => p.id === pedidoId ? { ...p, status, respondido_em: new Date().toISOString(), observacoes_resposta: observacoes || null } : p)
+      );
+      triggerToast(
+        status === 'aprovado' ? "✅ Acesso aprovado" : "❌ Acesso rejeitado",
+        status === 'aprovado' ? "O utilizador foi notificado e já pode aceder ao conteúdo." : "O pedido foi rejeitado.",
+        status === 'aprovado' ? "success" : "info"
+      );
+    } catch (error) {
+      handleAndShowError(error, "Responder pedido");
+    } finally {
+      setRespondingRequestId(null);
+    }
+  };
+
   const [showSavedContents, setShowSavedContents] = useState(false);
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -1095,7 +1132,7 @@ export default function Explorar() {
   };
 
   const openContent = (content: Content) => {
-    if ((content.requiresAccess || content.type === "texto_jindungo") && !isAccessApproved(content.id)) {
+    if ((content.requiresAccess || content.type === "texto_jindungo") && !isAccessApproved(content.id) && !isProfessorOuAdmin) {
       if (!isAuthenticated) {
         setAuthAction('solicitar acesso a conteúdos premium');
         setShowAuthPrompt(true);
@@ -1330,22 +1367,45 @@ export default function Explorar() {
     link.remove();
   };
 
-  const handleDownloadTrigger = async (content: Content) => {
+  const handleDownloadTrigger = async (content: Content, episodeIndex?: number) => {
     try {
-      const fileUrl = content.mediaUrl || content.thumbnail || content.videoCoverUrl;
       let blob: Blob;
       let filename: string;
 
-      if (fileUrl) {
-        const response = await fetch(fileUrl);
-        if (!response.ok) {
-          throw new Error(`Não foi possível descarregar o ficheiro (${response.status}).`);
+      if (content.type === 'texto_normal' || content.type === 'texto_jindungo') {
+        // Texto: descarrega conteúdo como ficheiro .txt
+        const body = content.content
+          ? content.content.replace(/<[^>]*>/g, '') // remove HTML tags
+          : content.description;
+        const text = `${content.title}\n${'─'.repeat(60)}\n${content.author}  ·  ${content.date}\n\n${body}`;
+        blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        filename = `${sanitizeFileName(content.title)}.txt`;
+
+      } else if (content.type === 'podcast') {
+        // Podcast: descarrega áudio do episódio (índice 0 por defeito)
+        const episodes = content.episodes || [];
+        const ep = episodes[episodeIndex ?? 0];
+        const audioUrl = ep?.audioUrl;
+        if (!audioUrl) {
+          triggerToast("⚠️ Sem ficheiro de áudio", "Este episódio não tem ficheiro de áudio disponível para download.", "warning");
+          return;
         }
+        const response = await fetch(audioUrl);
+        if (!response.ok) throw new Error(`Não foi possível descarregar o áudio (${response.status}).`);
         blob = await response.blob();
-        filename = buildDownloadFileName(content, blob);
+        const baseName = sanitizeFileName(ep.title || content.title);
+        filename = ep.audioFileName || `${baseName}.mp3`;
+
       } else {
-        const text = `${content.title}\n\n${content.author}\n${content.date}\n\n${content.content || content.description}`;
-        blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+        // Vídeo (ficheiro local): descarrega o recurso
+        const fileUrl = content.mediaUrl;
+        if (!fileUrl) {
+          triggerToast("⚠️ Sem ficheiro", "Este vídeo não tem ficheiro local disponível para download.", "warning");
+          return;
+        }
+        const response = await fetch(fileUrl);
+        if (!response.ok) throw new Error(`Não foi possível descarregar o vídeo (${response.status}).`);
+        blob = await response.blob();
         filename = buildDownloadFileName(content, blob);
       }
 
@@ -1616,11 +1676,6 @@ export default function Explorar() {
 
     if (!newContent.title.trim()) {
       triggerToast("📝 Título necessário", "Por favor, adicione um título para o conteúdo.", "warning");
-      return;
-    }
-
-    if (newContent.categories.length === 0) {
-      triggerToast("🏷️ Categorias necessárias", "Selecione pelo menos uma categoria para organizar o conteúdo.", "warning");
       return;
     }
 
@@ -2112,13 +2167,28 @@ export default function Explorar() {
           </button>
           
           {isProfessorOuAdmin && (
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="bg-white text-[#800020] hover:bg-[#FEE8E8] text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-all whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Adicionar Conteúdo</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { carregarPedidosAcesso(); setIsAccessRequestsModalOpen(true); }}
+                className="relative bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-2 transition-all whitespace-nowrap"
+                title="Gerir pedidos de acesso Jindungo"
+              >
+                <Flame className="w-4 h-4" />
+                <span>Pedidos Jindungo</span>
+                {accessRequestsList.filter(p => p.status === 'pendente').length > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-slate-900 text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center">
+                    {accessRequestsList.filter(p => p.status === 'pendente').length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="bg-white text-[#800020] hover:bg-[#FEE8E8] text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-all whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Adicionar Conteúdo</span>
+              </button>
+            </div>
           )}
         </div>
       </header>
@@ -2403,7 +2473,7 @@ export default function Explorar() {
               const isSaved = savedContents[content.id];
               const isCreator = content.createdByCurrentUser === true || isProfessorOuAdmin;
               const accessInfo = getAccessInfo(content.id);
-              const isPremiumContent = content.requiresAccess || content.type === "texto_jindungo";
+              const isPremiumContent = (content.requiresAccess || content.type === "texto_jindungo") && !isProfessorOuAdmin;
               const canOpenPremiumContent = isPremiumContent && accessInfo?.status === "aprovado";
 
               return (
@@ -2690,7 +2760,9 @@ export default function Explorar() {
                   </button>
                   <button
                     onClick={() => handleDownloadTrigger(videoContent)}
-                    className="flex items-center gap-2 text-sm text-slate-600 hover:text-[#800020] transition-colors"
+                    disabled={/^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(videoContent?.mediaUrl || '')}
+                    className="flex items-center gap-2 text-sm text-slate-600 hover:text-[#800020] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-slate-600"
+                    title={/^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(videoContent?.mediaUrl || '') ? 'Não disponível para vídeos do YouTube' : undefined}
                   >
                     <Download className="w-5 h-5" />
                     <span>Download</span>
@@ -2714,23 +2786,13 @@ export default function Explorar() {
       {/* ============================================================ */}
       <Dialog open={isTextModalOpen} onOpenChange={setIsTextModalOpen}>
         <DialogContent className="sm:max-w-5xl max-h-[95vh] overflow-y-auto p-0">
-          <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-            <button
-              onClick={() => { setIsTextModalOpen(false); setFullscreenContent(textContent); }}
-              className="flex items-center gap-1.5 px-3 py-2 bg-[#800020] hover:bg-[#5C0016] text-white rounded-full text-xs font-bold transition-all hover:scale-105 shadow-lg backdrop-blur-sm"
-              aria-label="Abrir em ecrã completo"
-            >
-              <Maximize2 className="w-4 h-4" />
-              <span>Ecrã completo</span>
-            </button>
-            <button
-              onClick={() => setIsTextModalOpen(false)}
-              className="p-3 bg-black/60 hover:bg-black/80 text-white rounded-full transition-all hover:scale-110 shadow-lg backdrop-blur-sm"
-              aria-label="Fechar"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
+          <button
+            onClick={() => setIsTextModalOpen(false)}
+            className="absolute top-4 right-4 z-20 p-3 bg-black/60 hover:bg-black/80 text-white rounded-full transition-all hover:scale-110 shadow-lg backdrop-blur-sm"
+            aria-label="Fechar"
+          >
+            <X className="w-6 h-6" />
+          </button>
 
           <DialogTitle className="sr-only">
             {textContent?.title || "Visualização de Texto"}
@@ -2760,7 +2822,15 @@ export default function Explorar() {
 
               <div className="p-8">
                 <h1 className="text-4xl font-bold text-slate-900 mb-4 leading-tight">{textContent.title}</h1>
-                
+
+                <button
+                  onClick={() => { setIsTextModalOpen(false); setFullscreenContent(textContent); }}
+                  className="mb-5 flex items-center gap-1.5 px-4 py-2 bg-[#800020] hover:bg-[#5C0016] text-white rounded-full text-xs font-bold transition-all shadow-sm"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  <span>Abrir em ecrã completo</span>
+                </button>
+
                 <div className="flex items-center gap-4 pb-6 border-b border-slate-200 mb-6">
                   <div className="w-14 h-14 bg-[#800020] rounded-full flex items-center justify-center text-white font-bold text-xl">
                     {textContent.author.split(" ").map((n) => n[0]).join("").slice(0, 2)}
@@ -2867,23 +2937,13 @@ export default function Explorar() {
       {/* ============================================================ */}
       <Dialog open={isPodcastModalOpen} onOpenChange={setIsPodcastModalOpen}>
         <DialogContent className="sm:max-w-5xl max-h-[95vh] overflow-y-auto p-0 bg-gradient-to-b from-gray-50 to-white">
-          <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-            <button
-              onClick={() => { setIsPodcastModalOpen(false); setFullscreenContent(podcastContent); }}
-              className="flex items-center gap-1.5 px-3 py-2 bg-[#800020] hover:bg-[#5C0016] text-white rounded-full text-xs font-bold transition-all hover:scale-105 shadow-lg backdrop-blur-sm"
-              aria-label="Abrir em ecrã completo"
-            >
-              <Maximize2 className="w-4 h-4" />
-              <span>Ecrã completo</span>
-            </button>
-            <button
-              onClick={() => setIsPodcastModalOpen(false)}
-              className="p-3 bg-black/60 hover:bg-black/80 text-white rounded-full transition-all hover:scale-110 shadow-lg backdrop-blur-sm"
-              aria-label="Fechar"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
+          <button
+            onClick={() => setIsPodcastModalOpen(false)}
+            className="absolute top-4 right-4 z-20 p-3 bg-black/60 hover:bg-black/80 text-white rounded-full transition-all hover:scale-110 shadow-lg backdrop-blur-sm"
+            aria-label="Fechar"
+          >
+            <X className="w-6 h-6" />
+          </button>
 
           <DialogTitle className="sr-only">
             {podcastContent?.title || "Visualização de Podcast"}
@@ -2912,6 +2972,13 @@ export default function Explorar() {
                   <div className="flex-1 pb-2">
                     <span className="text-sm font-bold uppercase tracking-wider text-[#800020] mb-2 block">Podcast</span>
                     <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-4 leading-tight">{podcastContent.title}</h2>
+                    <button
+                      onClick={() => { setIsPodcastModalOpen(false); setFullscreenContent(podcastContent); }}
+                      className="mb-4 flex items-center gap-1.5 px-4 py-2 bg-[#800020] hover:bg-[#5C0016] text-white rounded-full text-xs font-bold transition-all shadow-sm"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                      <span>Abrir em ecrã completo</span>
+                    </button>
                     <div className="flex items-center gap-3 text-base text-gray-600 mb-6">
                       <span className="text-slate-700 font-medium">{podcastContent.author}</span>
                       <span>•</span>
@@ -3428,12 +3495,8 @@ export default function Explorar() {
                             ))}
                           </SelectContent>
                         </Select>
-                        <p className={`mt-2 text-xs font-medium ${
-                          addContentSubmitAttempted && newContent.categories.length === 0 ? "text-[#800020]" : "text-slate-500"
-                        }`}>
-                          {addContentSubmitAttempted && newContent.categories.length === 0
-                            ? "Selecione pelo menos uma categoria antes de publicar."
-                            : "As categorias ajudam o conteúdo a aparecer nas pesquisas certas."}
+                        <p className="mt-2 text-xs font-medium text-slate-500">
+                          As categorias ajudam o conteúdo a aparecer nas pesquisas certas.
                         </p>
                       </div>
 
@@ -3910,6 +3973,81 @@ export default function Explorar() {
               {editingContentId ? "Guardar alterações" : "Publicar Conteúdo"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Pedidos de Acesso Jindungo (para o criador) */}
+      <Dialog open={isAccessRequestsModalOpen} onOpenChange={setIsAccessRequestsModalOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Flame className="w-5 h-5 text-amber-500" />
+              Pedidos de Acesso — Textos com Jindungo
+            </DialogTitle>
+            <DialogDescription>
+              Pedidos de acesso aos seus conteúdos exclusivos. Só você os vê.
+            </DialogDescription>
+          </DialogHeader>
+
+          {isLoadingAccessRequests ? (
+            <div className="py-12 text-center text-slate-400 text-sm">A carregar pedidos…</div>
+          ) : accessRequestsList.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 text-sm">Nenhum pedido de acesso recebido ainda.</div>
+          ) : (
+            <div className="space-y-3 mt-2">
+              {accessRequestsList.map((pedido) => (
+                <div key={pedido.id} className="rounded-xl border border-slate-200 p-4 bg-slate-50">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div>
+                      <p className="font-bold text-slate-900 text-sm">{pedido.usuario_nome}</p>
+                      <p className="text-xs text-slate-500">{pedido.usuario_email}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Conteúdo: <span className="font-semibold text-slate-600">{pedido.conteudo_titulo}</span>
+                      </p>
+                    </div>
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex-shrink-0 ${
+                      pedido.status === 'aprovado' ? 'bg-emerald-100 text-emerald-700'
+                      : pedido.status === 'rejeitado' ? 'bg-red-100 text-red-700'
+                      : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {pedido.status === 'aprovado' ? 'Aprovado' : pedido.status === 'rejeitado' ? 'Rejeitado' : 'Pendente'}
+                    </span>
+                  </div>
+
+                  {pedido.motivo && (
+                    <p className="text-xs text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2 mb-3 italic">
+                      "{pedido.motivo}"
+                    </p>
+                  )}
+
+                  {pedido.status === 'pendente' && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => responderPedidoAcesso(pedido.id, 'aprovado')}
+                        disabled={respondingRequestId === pedido.id}
+                        className="flex-1 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors disabled:opacity-50"
+                      >
+                        {respondingRequestId === pedido.id ? 'A processar…' : '✓ Aprovar'}
+                      </button>
+                      <button
+                        onClick={() => responderPedidoAcesso(pedido.id, 'rejeitado')}
+                        disabled={respondingRequestId === pedido.id}
+                        className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors disabled:opacity-50"
+                      >
+                        ✕ Rejeitar
+                      </button>
+                    </div>
+                  )}
+
+                  {pedido.status !== 'pendente' && pedido.respondido_em && (
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Respondido em {new Date(pedido.respondido_em).toLocaleDateString('pt-PT')}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

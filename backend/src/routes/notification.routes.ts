@@ -3,7 +3,7 @@ import {
   listNotificacoes, marcarLida, marcarTodasLidas, deleteNotificacao,
 } from '../controllers/notification.controller.js'
 import {
-  getMyProfile, getPublicProfile, updateMyProfile,
+  getMyProfile, getPublicProfile, updateMyProfile, changePassword,
 } from '../controllers/profile.controller.js'
 import { authenticate } from '../middlewares/authenticate.js'
 import { requireAuth } from '../middlewares/requireRole.js'
@@ -18,6 +18,7 @@ notificacaoRouter.delete('/:id',          authenticate, requireAuth, deleteNotif
 // ── Perfil ────────────────────────────────────────────────────────────────────
 export const perfilRouter = Router()
 
-perfilRouter.get('/',     authenticate, requireAuth, getMyProfile)
-perfilRouter.put('/',     authenticate, requireAuth, updateMyProfile)
-perfilRouter.get('/:id',  authenticate, getPublicProfile)
+perfilRouter.get('/',                    authenticate, requireAuth, getMyProfile)
+perfilRouter.put('/',                    authenticate, requireAuth, updateMyProfile)
+perfilRouter.post('/change-password',    authenticate, requireAuth, changePassword)
+perfilRouter.get('/:id',                 authenticate, getPublicProfile)

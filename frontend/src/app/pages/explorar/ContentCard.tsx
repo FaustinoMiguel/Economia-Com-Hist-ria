@@ -240,7 +240,11 @@ export function ContentCard({
             )
           ) : (
             <button
-              onClick={(e) => { e.stopPropagation(); onOpen(content) }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (content.type === 'video') onOpen(content);
+                else onOpenFullscreen(content);
+              }}
               className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-[#800020] text-white hover:bg-[#5C0016] font-bold text-xs transition-transform transform hover:-translate-y-0.5 active:translate-y-0 shadow-xs group-hover:shadow-md"
             >
               {content.type === 'video'          && <Play       className="w-3.5 h-3.5 fill-current" />}
