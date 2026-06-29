@@ -190,7 +190,7 @@ export default function Login() {
                 <div
                   className="h-1"
                   style={{
-                    background: 'linear-gradient(90deg,#800020,#ff4d5a)',
+                    background: 'linear-gradient(90deg,#800020,#A0002A)',
                     width: '60%',
                     animation: 'pulse-bar 1s ease infinite',
                     borderRadius: 4,

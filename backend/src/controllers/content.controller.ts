@@ -1,6 +1,14 @@
 import { Request, Response } from 'express'
 import * as ContentModel from '../models/content.model.js'
 
+export async function uploadConteudoFicheiro(req: Request, res: Response): Promise<void> {
+  if (!req.file) {
+    res.status(400).json({ erro: 'Nenhum ficheiro enviado.' })
+    return
+  }
+  res.status(201).json({ url: `/uploads/content/${req.file.filename}` })
+}
+
 export async function listarConteudos(req: Request, res: Response): Promise<void> {
   try {
     const conteudos = await ContentModel.findAllConteudos()
@@ -17,7 +25,7 @@ export async function criarConteudo(req: Request, res: Response): Promise<void> 
   try {
     const {
       titulo, descricao, conteudo_completo, tipo, categoria,
-      duracao, url_recurso, apresentador, categoria_podcast,
+      duracao, url_recurso, imagem_filename, apresentador, categoria_podcast,
     } = req.body ?? {}
 
     if (!titulo?.trim() || !tipo) {
@@ -37,6 +45,7 @@ export async function criarConteudo(req: Request, res: Response): Promise<void> 
       categoria: categoria ?? null,
       duracao: duracao ?? null,
       url_recurso: url_recurso ?? null,
+      imagem_filename: imagem_filename ?? null,
       apresentador: apresentador ?? null,
       categoria_podcast: categoria_podcast ?? null,
       publicado_por: req.user!.userId,

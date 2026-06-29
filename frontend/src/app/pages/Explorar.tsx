@@ -43,6 +43,8 @@ import {
   Layers,
   History,
   RefreshCcw,
+  Flame,
+  Maximize2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useParams } from "react-router";
@@ -51,6 +53,7 @@ import { useAuth } from '../contexts/AuthContext';
 import AuthPrompt from '../components/AuthPrompt';
 import { CommentSection } from './explorar/CommentSection';
 import { ContentCard } from './explorar/ContentCard';
+import { FullscreenContent } from './explorar/FullscreenContent';
 import { PodcastPlayerBar } from './explorar/PodcastPlayerBar';
 import { ContentGridSkeleton } from './explorar/ContentGridSkeleton';
 import { EmptyState } from './explorar/EmptyState';
@@ -257,6 +260,7 @@ export default function Explorar() {
   const [viewedHistory, setViewedHistory] = useState<Content[]>([]);
 
   const [videoContent, setVideoContent] = useState<Content | null>(null);
+  const [fullscreenContent, setFullscreenContent] = useState<Content | null>(null);
   const [textContent, setTextContent] = useState<Content | null>(null);
   const [podcastContent, setPodcastContent] = useState<Content | null>(null);
 
@@ -321,6 +325,7 @@ export default function Explorar() {
     videoCoverImage: null as File | null,
     videoCoverImageName: "",
     videoCoverPreviewUrl: "",
+    coverImageFile: null as File | null,
     coverImageName: "",
     coverPreviewUrl: "",
     newCategoryInput: "",
@@ -350,6 +355,16 @@ export default function Explorar() {
       ? 'from-violet-600 via-indigo-800 to-slate-950'
       : 'from-emerald-600 via-teal-700 to-slate-950'
 
+    // Episódios de podcast ficam serializados em conteudo_completo como JSON
+    let episodes: PodcastEpisode[] | undefined
+    if (item.tipo === 'podcast' && item.conteudo_completo) {
+      try { episodes = JSON.parse(item.conteudo_completo) } catch { episodes = [] }
+    }
+
+    // Suporte a URLs externas (http/https) guardadas directamente nos campos
+    const toMediaUrl = (raw: string | null | undefined) =>
+      raw ? (/^https?:\/\//.test(raw) ? raw : `/uploads/${raw}`) : undefined
+
     return {
       id: String(item.id),
       title: item.titulo,
@@ -368,11 +383,12 @@ export default function Explorar() {
       requiresAccess: item.tipo === 'texto_jindungo',
       imageColor,
       imageIcon,
-      thumbnail: item.imagem_filename ? `/uploads/${item.imagem_filename}` : undefined,
-      content: item.conteudo_completo || item.descricao || '',
+      thumbnail: toMediaUrl(item.imagem_filename),
+      content: item.tipo === 'podcast' ? (item.descricao || '') : (item.conteudo_completo || item.descricao || ''),
+      episodes,
       mediaUrl: item.url_recurso || item.video_filename || undefined,
       videoFile: null,
-      videoCoverUrl: item.imagem_filename ? `/uploads/${item.imagem_filename}` : undefined,
+      videoCoverUrl: toMediaUrl(item.imagem_filename),
       createdByCurrentUser: false,
     }
   }
@@ -603,6 +619,7 @@ export default function Explorar() {
       videoCoverImage: null,
       videoCoverImageName: "",
       videoCoverPreviewUrl: "",
+      coverImageFile: null,
       coverImageName: "",
       coverPreviewUrl: "",
       newCategoryInput: "",
@@ -933,6 +950,7 @@ export default function Explorar() {
       } else {
         setNewContent(prev => ({
           ...prev,
+          coverImageFile: file,
           coverImageName: file.name,
           coverPreviewUrl: url
         }));
@@ -1661,24 +1679,87 @@ export default function Explorar() {
         videoCoverUrl: resolvedType === "video" ? resolvedThumbnail : undefined,
       };
 
-      // ── Persistência na base de dados (tabela `conteudo`) ──────────────────
-      // Apenas URLs http(s) cabem em `url_recurso`; ficheiros enviados localmente
-      // (data: / blob:) não são guardados por falta de endpoint de upload.
-      const httpUrl = (u: unknown) =>
-        typeof u === 'string' && /^https?:\/\//i.test(u) ? u : null;
-      const recursoUrl = resolvedType === 'video'
-        ? (httpUrl(newContent.mediaPreviewUrl) || httpUrl(resolvedThumbnail))
-        : httpUrl(resolvedThumbnail);
+      // ── Upload de ficheiros para o servidor ────────────────────────────────
+      const uploadFicheiro = async (file: File): Promise<string> => {
+        const fd = new FormData();
+        fd.append('ficheiro', file);
+        const res = await api.post('/content/upload', fd, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 5 * 60 * 1000, // 5 min para ficheiros grandes
+        });
+        return res.data.url as string;
+      };
+
+      const isHttpUrl = (u: unknown) =>
+        typeof u === 'string' && /^https?:\/\//i.test(u);
+      const isServerPath = (u: unknown) =>
+        typeof u === 'string' && u.startsWith('/uploads/');
+      // URLs externas (ex: YouTube) guardadas directamente — não precisa de prefixo /uploads/
+      const toFilenameOrUrl = (url: string) =>
+        /^https?:\/\//i.test(url) ? url : url.replace(/^\/uploads\//, '');
+
+      // Helper: extrai o path relativo a /uploads/ para guardar na BD
+      const toFilename = (url: string) => url.replace(/^\/uploads\//, '');
+
+      // Upload do ficheiro de vídeo
+      let recursoUrl: string | null = (isHttpUrl(newContent.mediaPreviewUrl) || isServerPath(newContent.mediaPreviewUrl))
+        ? newContent.mediaPreviewUrl
+        : null;
+      if (!recursoUrl && newContent.mediaFile) {
+        recursoUrl = await uploadFicheiro(newContent.mediaFile);
+      }
+
+      // Upload da imagem de capa (vídeo → videoCoverImage; texto/podcast → coverImageFile)
+      let imagemFilename: string | null = null;
+      if (resolvedType === 'video') {
+        if (newContent.videoCoverImage) {
+          imagemFilename = toFilenameOrUrl(await uploadFicheiro(newContent.videoCoverImage));
+        } else if (isHttpUrl(newContent.videoCoverPreviewUrl) || isServerPath(newContent.videoCoverPreviewUrl)) {
+          imagemFilename = toFilenameOrUrl(newContent.videoCoverPreviewUrl);
+        }
+      } else {
+        if (newContent.coverImageFile) {
+          imagemFilename = toFilenameOrUrl(await uploadFicheiro(newContent.coverImageFile));
+        } else if (isHttpUrl(newContent.coverPreviewUrl) || isServerPath(newContent.coverPreviewUrl)) {
+          imagemFilename = toFilenameOrUrl(newContent.coverPreviewUrl);
+        }
+      }
+
+      // Podcast: faz upload dos áudios dos episódios com blob URL e serializa como JSON
+      let episodesComUrl = newContent.episodes;
+      if (resolvedType === 'podcast' && newContent.episodes.length > 0) {
+        episodesComUrl = await Promise.all(
+          newContent.episodes.map(async ep => {
+            // Já tem URL de servidor — não precisa de upload
+            if (!ep.audioUrl || isHttpUrl(ep.audioUrl) || isServerPath(ep.audioUrl)) return ep;
+            // É blob URL: converter para File e fazer upload
+            try {
+              const blob = await fetch(ep.audioUrl).then(r => r.blob());
+              const file = new File([blob], ep.audioFileName || 'audio.mp3', { type: blob.type });
+              const serverUrl = await uploadFicheiro(file);
+              return { ...ep, audioUrl: serverUrl };
+            } catch {
+              return ep;
+            }
+          })
+        );
+      }
+
+      // Episódios de podcast ficam serializados em conteudo_completo
+      const finalContentBody = resolvedType === 'podcast'
+        ? JSON.stringify(episodesComUrl)
+        : (resolvedContentBody || null);
 
       const apiPayload = {
         titulo: newContent.title,
         descricao: newContent.description,
-        conteudo_completo: resolvedContentBody || null,
+        conteudo_completo: finalContentBody,
         tipo: resolvedType,
         categoria: Array.isArray(newContent.categories)
           ? (newContent.categories[0] ?? null)
           : (newContent.categories ?? null),
         url_recurso: recursoUrl,
+        imagem_filename: imagemFilename,
       };
 
       if (editingContentId) {
@@ -1976,6 +2057,7 @@ export default function Explorar() {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Guardados */}
           <button
             onClick={() => {
               if (!isAuthenticated) {
@@ -1987,14 +2069,18 @@ export default function Explorar() {
             }}
             className={`px-4 py-2 text-xs font-semibold rounded-lg border flex items-center gap-2 transition-all ${
               showSavedContents
-                ? "bg-white text-[#800020] border-white"
+                ? "bg-white text-[#800020] border-white shadow-sm"
                 : "border-[#FBBCB8]/40 bg-white/10 hover:bg-white/20 text-white"
             }`}
           >
             <Bookmark className="w-4 h-4" fill={showSavedContents ? "currentColor" : "none"} />
-            <span>{showSavedContents ? "Mostrar Todos" : `Guardados (${contents.filter(c => savedContents[c.id]).length})`}</span>
+            <span>Guardados</span>
+            {(() => { const n = contents.filter(c => savedContents[c.id]).length; return n > 0 ? (
+              <span className={`ml-0.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${showSavedContents ? "bg-[#800020] text-white" : "bg-white/25 text-white"}`}>{n}</span>
+            ) : null; })()}
           </button>
 
+          {/* Minha Playlist */}
           <button
             onClick={() => {
               if (!isAuthenticated) {
@@ -2007,15 +2093,22 @@ export default function Explorar() {
             className="border-[#FBBCB8]/40 bg-white/10 hover:bg-white/20 text-white px-4 py-2 text-xs font-semibold rounded-lg border flex items-center gap-2 transition-all whitespace-nowrap"
           >
             <List className="w-4 h-4 text-[#FDD5D5]" />
-            <span>Minha Playlist ({Object.keys(playlistItems).length})</span>
+            <span>Playlist</span>
+            {Object.keys(playlistItems).length > 0 && (
+              <span className="ml-0.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center bg-white/25 text-white">{Object.keys(playlistItems).length}</span>
+            )}
           </button>
 
+          {/* Histórico */}
           <button
             onClick={() => setShowHistory(true)}
             className="border-[#FBBCB8]/40 bg-white/10 hover:bg-white/20 text-white px-4 py-2 text-xs font-semibold rounded-lg border flex items-center gap-2 transition-all whitespace-nowrap"
           >
             <History className="w-4 h-4 text-[#FDD5D5]" />
-            <span>Histórico ({viewedHistory.length})</span>
+            <span>Histórico</span>
+            {viewedHistory.length > 0 && (
+              <span className="ml-0.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center bg-white/25 text-white">{viewedHistory.length}</span>
+            )}
           </button>
           
           {isProfessorOuAdmin && (
@@ -2034,7 +2127,7 @@ export default function Explorar() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         
         {/* Search, Category Selection Filter and Tab Row */}
-        <div className="relative overflow-hidden bg-white rounded-2xl p-4 sm:p-6 border border-[#800020]/10 shadow-lg shadow-[#800020]/[0.04] mb-8">
+        <div className="relative bg-white rounded-2xl p-4 sm:p-6 border border-[#800020]/10 shadow-lg shadow-[#800020]/[0.04] mb-8">
           <div className="absolute inset-x-0 top-0 h-1 bg-[#800020]" />
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             
@@ -2081,10 +2174,15 @@ export default function Explorar() {
                   aria-label="Selecionar categoria"
                   aria-haspopup="listbox"
                   aria-expanded={isCategorySelectOpen}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-[#800020]/[0.035] border border-[#800020]/15 hover:bg-[#800020]/10 transition-all rounded-xl text-xs font-semibold text-[#800020]"
+                  className={`flex items-center gap-2 px-4 py-2.5 border transition-all rounded-xl text-xs font-semibold text-[#800020] ${
+                    selectedCategory !== "all"
+                      ? "bg-[#800020]/10 border-[#800020]/30"
+                      : "bg-[#800020]/[0.035] border-[#800020]/15 hover:bg-[#800020]/10"
+                  }`}
                 >
                   <Filter className="w-3.5 h-3.5 text-[#800020]" />
-                  <span>Categorias: {categoryLabels[selectedCategory]?.label || selectedCategory}</span>
+                  <span>{selectedCategory === "all" ? "Categorias" : categoryLabels[selectedCategory]?.label || selectedCategory}</span>
+                  {selectedCategory !== "all" && <span className="h-2 w-2 rounded-full bg-[#800020] inline-block" />}
                   <ChevronDown className="w-3.5 h-3.5 ml-1 text-[#800020]/60" />
                 </button>
                 {isCategorySelectOpen && (
@@ -2183,14 +2281,26 @@ export default function Explorar() {
 
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`p-2.5 rounded-xl border transition-all text-xs font-semibold flex items-center gap-1.5 ${
-                  showFilters
+                className={`px-4 py-2.5 rounded-xl border transition-all text-xs font-semibold flex items-center gap-1.5 ${
+                  showFilters || selectedType !== "all"
                     ? "bg-amber-100 text-amber-800 border-amber-300"
                     : "bg-white border-amber-200 text-amber-800 hover:bg-amber-50"
                 }`}
               >
                 <Layers className="w-4 h-4 text-amber-600" />
-                <span>Formatos</span>
+                <span>
+                  {selectedType === "all"
+                    ? "Formatos"
+                    : selectedType === "video" ? "Vídeos"
+                    : selectedType === "texto_normal" ? "Textos"
+                    : selectedType === "texto_jindungo" ? "Jindungo"
+                    : selectedType === "podcast" ? "Podcasts"
+                    : "Formatos"}
+                </span>
+                {selectedType !== "all" && (
+                  <span className="ml-0.5 h-2 w-2 rounded-full bg-amber-500 inline-block" />
+                )}
+                <ChevronDown className="w-3.5 h-3.5 text-amber-600/60" />
               </button>
 
             </div>
@@ -2211,7 +2321,7 @@ export default function Explorar() {
                     { id: "all", label: "Tudo", icon: Globe },
                     { id: "video", label: "Vídeos", icon: Play },
                     { id: "texto_normal", label: "Textos", icon: FileText },
-                    { id: "texto_jindungo", label: "Texto com Jindungo", icon: FileText },
+                    { id: "texto_jindungo", label: "Texto com Jindungo", icon: Flame },
                     { id: "podcast", label: "Podcasts & Debates", icon: Mic }
                   ].map((type) => {
                     const TypeIcon = type.icon;
@@ -2302,12 +2412,20 @@ export default function Explorar() {
                   content={content}
                   isSaved={isSaved}
                   isSavingId={isSavingId}
+                  isLiked={!!likedContents[content.id]}
+                  isLikingId={isLikingId}
                   isCreator={isCreator}
                   accessInfo={accessInfo}
                   isPremiumContent={isPremiumContent}
                   canOpenPremiumContent={canOpenPremiumContent}
                   categoryLabels={categoryLabels}
                   onOpen={openContent}
+                  onLike={handleLike}
+                  onOpenFullscreen={(c) => {
+                    setViewedHistory(prev => [c, ...prev.filter(i => i.id !== c.id)].slice(0, 12));
+                    updateViews(c.id);
+                    setFullscreenContent(c);
+                  }}
                   onSaveToggle={handleSaveToggle}
                   onAccessRequest={triggerAccessRequest}
                   onEditStart={(c) => {
@@ -2454,11 +2572,20 @@ export default function Explorar() {
             <div>
               <div className={`relative w-full max-h-[75vh] aspect-video ${videoContent.thumbnail ? 'bg-slate-200' : `bg-gradient-to-br ${videoContent.imageColor}`} flex items-center justify-center overflow-hidden`}>
                 {videoContent.mediaUrl ? (
+                  /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(videoContent.mediaUrl) ? (
+                    <iframe
+                      src={`https://www.youtube.com/embed/${videoContent.mediaUrl.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1] ?? ''}`}
+                      className="w-full h-full max-h-[75vh] aspect-video"
+                      allowFullScreen
+                      title={videoContent.title}
+                    />
+                  ) : (
                   <video
                     src={videoContent.mediaUrl}
                     controls
                     className="w-full h-full max-h-[75vh] object-contain bg-black"
                   />
+                  )
                 ) : videoContent.thumbnail ? (
                   <img
                     src={videoContent.thumbnail}
@@ -2478,6 +2605,13 @@ export default function Explorar() {
               </div>
 
               <div className="p-8">
+                <button
+                  onClick={() => { setIsVideoModalOpen(false); setFullscreenContent(videoContent); }}
+                  className="mb-5 flex items-center gap-1.5 px-4 py-2 bg-[#800020] hover:bg-[#5C0016] text-white rounded-full text-xs font-bold transition-all shadow-sm"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  <span>Abrir em ecrã completo</span>
+                </button>
                 <h2 className="text-3xl font-bold text-slate-900 mb-4">{videoContent.title}</h2>
 
                 <div className="flex items-center justify-between flex-wrap gap-4 mb-4 pb-4 border-b border-slate-200">
@@ -2580,14 +2714,23 @@ export default function Explorar() {
       {/* ============================================================ */}
       <Dialog open={isTextModalOpen} onOpenChange={setIsTextModalOpen}>
         <DialogContent className="sm:max-w-5xl max-h-[95vh] overflow-y-auto p-0">
-          {/* Botão de fechar maior e mais visível */}
-          <button
-            onClick={() => setIsTextModalOpen(false)}
-            className="absolute top-4 right-4 z-20 p-3 bg-black/60 hover:bg-black/80 text-white rounded-full transition-all hover:scale-110 shadow-lg backdrop-blur-sm"
-            aria-label="Fechar"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+            <button
+              onClick={() => { setIsTextModalOpen(false); setFullscreenContent(textContent); }}
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#800020] hover:bg-[#5C0016] text-white rounded-full text-xs font-bold transition-all hover:scale-105 shadow-lg backdrop-blur-sm"
+              aria-label="Abrir em ecrã completo"
+            >
+              <Maximize2 className="w-4 h-4" />
+              <span>Ecrã completo</span>
+            </button>
+            <button
+              onClick={() => setIsTextModalOpen(false)}
+              className="p-3 bg-black/60 hover:bg-black/80 text-white rounded-full transition-all hover:scale-110 shadow-lg backdrop-blur-sm"
+              aria-label="Fechar"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
 
           <DialogTitle className="sr-only">
             {textContent?.title || "Visualização de Texto"}
@@ -2724,14 +2867,23 @@ export default function Explorar() {
       {/* ============================================================ */}
       <Dialog open={isPodcastModalOpen} onOpenChange={setIsPodcastModalOpen}>
         <DialogContent className="sm:max-w-5xl max-h-[95vh] overflow-y-auto p-0 bg-gradient-to-b from-gray-50 to-white">
-          {/* Botão de fechar maior e mais visível */}
-          <button
-            onClick={() => setIsPodcastModalOpen(false)}
-            className="absolute top-4 right-4 z-20 p-3 bg-black/60 hover:bg-black/80 text-white rounded-full transition-all hover:scale-110 shadow-lg backdrop-blur-sm"
-            aria-label="Fechar"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+            <button
+              onClick={() => { setIsPodcastModalOpen(false); setFullscreenContent(podcastContent); }}
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#800020] hover:bg-[#5C0016] text-white rounded-full text-xs font-bold transition-all hover:scale-105 shadow-lg backdrop-blur-sm"
+              aria-label="Abrir em ecrã completo"
+            >
+              <Maximize2 className="w-4 h-4" />
+              <span>Ecrã completo</span>
+            </button>
+            <button
+              onClick={() => setIsPodcastModalOpen(false)}
+              className="p-3 bg-black/60 hover:bg-black/80 text-white rounded-full transition-all hover:scale-110 shadow-lg backdrop-blur-sm"
+              aria-label="Fechar"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
 
           <DialogTitle className="sr-only">
             {podcastContent?.title || "Visualização de Podcast"}
@@ -3153,14 +3305,15 @@ export default function Explorar() {
                     <p className="text-xs font-extrabold uppercase tracking-wider text-[#800020]">Etapa 1</p>
                     <h3 className="text-xl font-black text-slate-950">Tipo de conteúdo</h3>
                   </div>
-                  <p className="text-xs font-semibold text-slate-500">3 formatos disponíveis</p>
+                  <p className="text-xs font-semibold text-slate-500">4 formatos disponíveis</p>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
                   {[
                     { id: "video", label: "Vídeo", desc: "Conteúdo MP4, MOV ou WebM", icon: Video },
                     { id: "texto", label: "Artigo", desc: "Texto editorial com imagem de capa", icon: FileText },
                     { id: "podcast", label: "Podcast", desc: "Episódios com áudio e descrição", icon: Mic },
+                    { id: "texto_jindungo", label: "Texto com Jindungo", desc: "Conteúdo exclusivo para membros", icon: Flame },
                   ].map((type) => {
                     const isSelected = newContent.type === type.id || (type.id === "texto" && newContent.type === "texto_normal");
                     return (
@@ -3179,6 +3332,8 @@ export default function Explorar() {
                             videoCoverImage: null,
                             videoCoverImageName: "",
                             videoCoverPreviewUrl: "",
+                            coverImageFile: null,
+                            coverPreviewUrl: "",
                           });
                         }}
                         className={`group min-h-[150px] rounded-2xl border-2 bg-white p-5 text-left transition-all active:scale-[0.99] ${
@@ -3373,6 +3528,22 @@ export default function Explorar() {
                               </div>
                             )}
                           </div>
+                          {/* Input de URL de imagem externa */}
+                          <div className="mt-3">
+                            <Label className="mb-1.5 block text-xs font-semibold text-slate-600">
+                              Ou cole um link de imagem
+                            </Label>
+                            <input
+                              type="url"
+                              placeholder="https://exemplo.com/imagem.jpg"
+                              value={/^https?:\/\//i.test(newContent.coverPreviewUrl) ? newContent.coverPreviewUrl : ""}
+                              onChange={(e) => {
+                                const val = e.target.value.trim();
+                                setNewContent({ ...newContent, coverPreviewUrl: val, coverImageFile: null, coverImageName: val ? "Imagem externa" : "" });
+                              }}
+                              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800020]"
+                            />
+                          </div>
                         </div>
                       )}
 
@@ -3411,8 +3582,44 @@ export default function Explorar() {
                                 <p className="mt-3 text-[11px] font-medium uppercase tracking-wide text-slate-400">MP4 • MOV • WebM • Até 100 MB</p>
                               </label>
                               {newContent.mediaPreviewUrl && (
-                                <video src={newContent.mediaPreviewUrl} controls className="mt-4 max-h-72 w-full rounded-xl bg-black" />
+                                /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(newContent.mediaPreviewUrl) ? (
+                                  <iframe
+                                    src={`https://www.youtube.com/embed/${newContent.mediaPreviewUrl.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1] ?? ''}`}
+                                    className="mt-4 w-full rounded-xl aspect-video"
+                                    allowFullScreen
+                                    title="YouTube preview"
+                                  />
+                                ) : (
+                                  <video src={newContent.mediaPreviewUrl} controls className="mt-4 max-h-72 w-full rounded-xl bg-black" />
+                                )
                               )}
+                            </div>
+                            {/* Input de URL YouTube */}
+                            <div className="mt-3">
+                              <Label className="mb-1.5 block text-xs font-semibold text-slate-600">
+                                Ou cole um link do YouTube
+                              </Label>
+                              <input
+                                type="url"
+                                placeholder="https://www.youtube.com/watch?v=..."
+                                value={/^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(newContent.mediaPreviewUrl) ? newContent.mediaPreviewUrl : ""}
+                                onChange={(e) => {
+                                  const val = e.target.value.trim();
+                                  const ytId = val.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1];
+                                  // Sempre actualiza a capa quando o link YouTube muda e tem ID válido
+                                  const thumbUrl = ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : "";
+                                  setNewContent({
+                                    ...newContent,
+                                    mediaPreviewUrl: val,
+                                    mediaFile: null,
+                                    mediaFileName: val ? "YouTube" : "",
+                                    videoCoverPreviewUrl: thumbUrl,
+                                    videoCoverImage: thumbUrl ? null : newContent.videoCoverImage,
+                                    videoCoverImageName: thumbUrl ? "Capa do YouTube" : newContent.videoCoverImageName,
+                                  });
+                                }}
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800020]"
+                              />
                             </div>
                           </div>
 
@@ -3454,6 +3661,22 @@ export default function Explorar() {
                                   <img src={newContent.videoCoverPreviewUrl} alt="Pré-visualização da capa do vídeo" className="max-h-64 max-w-full rounded-xl object-contain shadow-sm" />
                                 </div>
                               )}
+                            </div>
+                            {/* Input de URL de imagem externa para capa do vídeo */}
+                            <div className="mt-3">
+                              <Label className="mb-1.5 block text-xs font-semibold text-slate-600">
+                                Ou cole um link de imagem
+                              </Label>
+                              <input
+                                type="url"
+                                placeholder="https://exemplo.com/capa.jpg"
+                                value={/^https?:\/\//i.test(newContent.videoCoverPreviewUrl) ? newContent.videoCoverPreviewUrl : ""}
+                                onChange={(e) => {
+                                  const val = e.target.value.trim();
+                                  setNewContent({ ...newContent, videoCoverPreviewUrl: val, videoCoverImage: null, videoCoverImageName: val ? "Imagem externa" : "" });
+                                }}
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800020]"
+                              />
                             </div>
                           </div>
                         </>
@@ -3646,7 +3869,16 @@ export default function Explorar() {
                 )}
 
                 {newContent.type === "video" && newContent.mediaPreviewUrl && (
-                  <video src={newContent.mediaPreviewUrl} controls className="w-full rounded-lg mb-4 max-h-96 shadow-inner" />
+                  /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(newContent.mediaPreviewUrl) ? (
+                    <iframe
+                      src={`https://www.youtube.com/embed/${newContent.mediaPreviewUrl.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1] ?? ''}`}
+                      className="w-full rounded-lg mb-4 aspect-video"
+                      allowFullScreen
+                      title="YouTube preview"
+                    />
+                  ) : (
+                    <video src={newContent.mediaPreviewUrl} controls className="w-full rounded-lg mb-4 max-h-96 shadow-inner" />
+                  )
                 )}
 
                 <div className="prose prose-slate max-w-none">
@@ -3770,6 +4002,30 @@ export default function Explorar() {
         onOpenChange={setShowAuthPrompt}
         action={authAction}
       />
+
+      {/* Vista Fullscreen de conteúdo */}
+      <AnimatePresence>
+        {fullscreenContent && (
+          <FullscreenContent
+            content={fullscreenContent}
+            allContents={currentDisplayContents}
+            onClose={() => setFullscreenContent(null)}
+            onNavigate={(c) => {
+              updateViews(c.id);
+              setViewedHistory(prev => [c, ...prev.filter(i => i.id !== c.id)].slice(0, 12));
+              setFullscreenContent(c);
+            }}
+            onSaveToggle={handleSaveToggle}
+            isSaved={!!savedContents[fullscreenContent.id]}
+            onPlayEpisode={(ep, podcast) => {
+              setPlayingEpisode(ep);
+              setPlayingPodcastTitle(podcast.title);
+              setPlayingPodcastThumbnail(podcast.thumbnail || "");
+            }}
+            categoryLabels={categoryLabels}
+          />
+        )}
+      </AnimatePresence>
 
     </div>
   );

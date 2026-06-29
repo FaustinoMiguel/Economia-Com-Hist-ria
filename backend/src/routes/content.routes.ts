@@ -18,12 +18,15 @@ import {
   removerConteudo,
   removerPlaylist,
   solicitarAcessoConteudo,
+  uploadConteudoFicheiro,
 } from '../controllers/content.controller.js'
 import { authenticate, authenticateOptional } from '../middlewares/authenticate.js'
+import { uploadContent } from '../middlewares/uploadContent.js'
 
 export const contentRouter = Router()
 
 contentRouter.get('/', listarConteudos)
+contentRouter.post('/upload', authenticate, uploadContent, uploadConteudoFicheiro)
 contentRouter.post('/', authenticate, criarConteudo)
 contentRouter.get('/me/state', authenticate, obterEstadoUsuario)
 contentRouter.get('/me/playlist', authenticate, listarPlaylist)

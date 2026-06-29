@@ -101,6 +101,7 @@ export interface NovoConteudo {
   categoria?: string | null
   duracao?: string | null
   url_recurso?: string | null
+  imagem_filename?: string | null
   apresentador?: string | null
   categoria_podcast?: string | null
   publicado_por: number
@@ -110,8 +111,8 @@ export async function createConteudo(data: NovoConteudo): Promise<ConteudoRow | 
   const [result] = await pool.query<ResultSetHeader>(
     `INSERT INTO conteudo
        (titulo, descricao, conteudo_completo, tipo, categoria, duracao,
-        url_recurso, apresentador, categoria_podcast, publicado_por)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        url_recurso, imagem_filename, apresentador, categoria_podcast, publicado_por)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.titulo,
       data.descricao ?? null,
@@ -120,6 +121,7 @@ export async function createConteudo(data: NovoConteudo): Promise<ConteudoRow | 
       data.categoria ?? null,
       data.duracao ?? null,
       data.url_recurso ?? null,
+      data.imagem_filename ?? null,
       data.apresentador ?? null,
       data.categoria_podcast ?? null,
       data.publicado_por,
@@ -136,7 +138,7 @@ export async function updateConteudo(
   const valores: unknown[] = []
   const permitidos: (keyof typeof data)[] = [
     'titulo', 'descricao', 'conteudo_completo', 'tipo', 'categoria',
-    'duracao', 'url_recurso', 'apresentador', 'categoria_podcast',
+    'duracao', 'url_recurso', 'imagem_filename', 'apresentador', 'categoria_podcast',
   ]
   for (const k of permitidos) {
     if (data[k] !== undefined) {

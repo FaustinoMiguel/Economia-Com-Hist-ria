@@ -16,6 +16,8 @@ function figmaAssetResolver() {
   }
 }
 
+const BACKEND = process.env.VITE_BACKEND_URL ?? 'http://localhost:5000'
+
 export default defineConfig({
   plugins: [
     figmaAssetResolver(),
@@ -28,6 +30,16 @@ export default defineConfig({
     alias: {
       // Alias @ to the src directory
       '@': path.resolve(__dirname, './src'),
+    },
+  },
+
+  // Proxy /uploads/* → backend (ficheiros estáticos de media)
+  server: {
+    proxy: {
+      '/uploads': {
+        target: BACKEND,
+        changeOrigin: true,
+      },
     },
   },
 
