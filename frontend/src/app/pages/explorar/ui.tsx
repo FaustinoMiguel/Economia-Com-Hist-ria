@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import DOMPurify from "dompurify";
 
@@ -129,7 +129,7 @@ type InputProps = React.ComponentPropsWithoutRef<"input">;
 export function Input({ className = "", ...props }: InputProps) {
   return (
     <input
-      className={`flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+      className={`flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#800020] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
       {...props}
     />
   );
@@ -140,7 +140,7 @@ type TextareaProps = React.ComponentPropsWithoutRef<"textarea">;
 export function Textarea({ className = "", ...props }: TextareaProps) {
   return (
     <textarea
-      className={`flex min-h-[80px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+      className={`flex min-h-[80px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#800020] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
       {...props}
     />
   );
@@ -197,7 +197,7 @@ export function SelectTrigger({ className = "", children, ...props }: { classNam
       }}
       aria-haspopup="listbox"
       aria-expanded={context.isOpen}
-      className={`flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 text-left ${className}`}
+      className={`flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#800020] focus:ring-offset-2 text-left ${className}`}
       {...props}
     >
       {children}
@@ -252,13 +252,13 @@ type ButtonProps = React.ComponentPropsWithoutRef<"button"> & {
 };
 
 export function Button({ className = "", variant = "default", size = "default", children, ...props }: ButtonProps) {
-  const baseStyle = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:pointer-events-none disabled:opacity-50 cursor-pointer";
+  const baseStyle = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#800020] disabled:pointer-events-none disabled:opacity-50 cursor-pointer";
 
   const variants = {
     default: "bg-[#800020] text-white hover:bg-[#5C0016] shadow-sm",
     outline: "border border-slate-250 bg-white hover:bg-slate-50 text-slate-700",
     ghost: "hover:bg-slate-50 text-slate-700",
-    link: "text-red-600 underline-offset-4 hover:underline",
+    link: "text-[#800020] underline-offset-4 hover:underline",
   };
 
   const sizes = {

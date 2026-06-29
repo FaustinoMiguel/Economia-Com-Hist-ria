@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import {
   BookOpen,
@@ -65,7 +65,7 @@ export default function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <Link to="/" className="flex flex-shrink-0 items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-700">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#5C0016]">
               <BookOpen className="h-4 w-4 text-white" />
             </div>
             <div className="hidden sm:block">
@@ -85,7 +85,7 @@ export default function Navbar() {
                   to={link.href}
                   className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                     isActivo(link.href)
-                      ? 'bg-red-50 text-red-700'
+                      ? 'bg-[#FFF2F2] text-[#5C0016]'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
@@ -106,7 +106,7 @@ export default function Navbar() {
                 >
                   <Bell className="h-4 w-4" />
                   {naoLidas > 0 && (
-                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-none text-white">
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#800020] px-1 text-[10px] font-bold leading-none text-white">
                       {naoLidas > 9 ? '9+' : naoLidas}
                     </span>
                   )}
@@ -117,8 +117,8 @@ export default function Navbar() {
                     onClick={() => setPerfilAberto(!perfilAberto)}
                     className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-slate-100"
                   >
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-100">
-                      <span className="text-xs font-bold text-red-700">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#FEE8E8]">
+                      <span className="text-xs font-bold text-[#5C0016]">
                         {user?.name?.charAt(0).toUpperCase()}
                       </span>
                     </div>
@@ -163,7 +163,7 @@ export default function Navbar() {
                         <div className="border-t border-slate-100 py-1">
                           <button
                             onClick={handleLogout}
-                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50"
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[#800020] transition-colors hover:bg-[#FFF2F2]"
                           >
                             <LogOut className="h-4 w-4" />
                             Sair
@@ -177,7 +177,7 @@ export default function Navbar() {
             ) : (
               <Link
                 to="/login"
-                className="px-5 py-2 text-sm font-semibold text-red-700 transition-colors hover:text-red-800"
+                className="px-5 py-2 text-sm font-semibold text-[#5C0016] transition-colors hover:text-[#5C0016]"
               >
                 Entrar
               </Link>
@@ -205,7 +205,7 @@ export default function Navbar() {
                   onClick={() => setMenuAberto(false)}
                   className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
                     isActivo(link.href)
-                      ? 'bg-red-50 text-red-700'
+                      ? 'bg-[#FFF2F2] text-[#5C0016]'
                       : 'text-slate-600 hover:bg-slate-50'
                   }`}
                 >
@@ -220,7 +220,7 @@ export default function Navbar() {
                 <Link
                   to="/login"
                   onClick={() => setMenuAberto(false)}
-                  className="block rounded-xl bg-red-700 px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-red-800"
+                  className="block rounded-xl bg-[#5C0016] px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-[#5C0016]"
                 >
                   Login
                 </Link>

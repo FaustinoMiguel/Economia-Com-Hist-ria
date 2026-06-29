@@ -1,4 +1,4 @@
-/**
+﻿/**
 import { toast } from 'sonner';
  * AdminQuizzes.tsx
  *
@@ -199,9 +199,9 @@ export default function AdminQuizzes() {
     if (erro) { setFormError(erro); return }
 
     const payload = {
-      titulo:    quizForm.titulo.trim(),
-      descricao: quizForm.descricao.trim() || null,
-      categoria: quizForm.categoria || null,
+      titulo:        quizForm.titulo.trim(),
+      descricao:     quizForm.descricao.trim() || null,
+      categoria:     quizForm.categoria || null,
       perguntas: perguntas.map((p, i) => ({
         pergunta:         p.pergunta.trim(),
         opcao_a:          p.opcao_a.trim(),
@@ -376,7 +376,7 @@ export default function AdminQuizzes() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex h-14 items-center justify-between">
             <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-700">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#5C0016]">
                 <BookOpen className="h-4 w-4 text-white" />
               </div>
               <span className="hidden sm:block text-sm font-bold text-slate-900">Economia com História</span>
@@ -394,14 +394,14 @@ export default function AdminQuizzes() {
                 </Link>
               ))}
               <span className="mx-1 h-5 w-px bg-slate-200" />
-              <Link to="/admin" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-red-700 hover:bg-red-50 transition-colors">
+              <Link to="/admin" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-[#5C0016] hover:bg-[#FFF2F2] transition-colors">
                 <Shield className="w-4 h-4" /> Admin
               </Link>
             </div>
 
             <div className="flex items-center gap-2">
               <button onClick={() => { logout(); navigate('/') }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-[#800020] hover:bg-[#FFF2F2] transition-colors">
                 <LogOut className="w-4 h-4" />
                 <span className="hidden sm:inline">Sair</span>
               </button>
@@ -430,7 +430,7 @@ export default function AdminQuizzes() {
       </nav>
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <section className="bg-gradient-to-r from-red-600 via-black to-yellow-600 text-white">
+      <section className="bg-gradient-to-r from-[#800020] via-black to-yellow-600 text-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="flex items-center gap-3 mb-2">
             <FileQuestion className="w-9 h-9" />
@@ -450,7 +450,7 @@ export default function AdminQuizzes() {
         {/* ── PONTO 4 — Painel Gerar com IA ─────────────────────────────────── */}
         <Card className="border-orange-200">
           <CardHeader
-            className="cursor-pointer select-none flex flex-row items-center justify-between gap-4"
+            className="cursor-pointer select-none flex flex-row items-center justify-between gap-4 py-4"
             onClick={() => setMostrarIA(!mostrarIA)}
           >
             <div className="flex items-center gap-2">
@@ -468,7 +468,7 @@ export default function AdminQuizzes() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2 space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">
-                    Tema <span className="text-red-500">*</span>
+                    Tema <span className="text-[#800020]">*</span>
                   </label>
                   <Input
                     placeholder="Ex: Independência de Angola, Inflação, Escravatura..."
@@ -500,17 +500,25 @@ export default function AdminQuizzes() {
                 </div>
 
                 <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Público-alvo (opcional)</label>
-                  <Input
-                    placeholder="Ex: alunos do 12.º ano, estudantes universitários..."
+                  <label className="text-sm font-medium text-slate-700">Público-alvo</label>
+                  <select
                     value={iaForm.publico}
                     onChange={e => setIaForm(f => ({ ...f, publico: e.target.value }))}
-                  />
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+                  >
+                    <option value="">Público geral</option>
+                    <option value="alunos do ensino secundário (10.º ao 12.º ano)">Ensino Secundário (10.º–12.º ano)</option>
+                    <option value="estudantes universitários de economia ou gestão">Universitários — Economia / Gestão</option>
+                    <option value="estudantes universitários de história ou ciências sociais">Universitários — História / Ciências Sociais</option>
+                    <option value="professores e educadores do ensino secundário">Professores e Educadores</option>
+                    <option value="profissionais e técnicos da área económica">Profissionais de Economia</option>
+                    <option value="investigadores e académicos">Investigadores e Académicos</option>
+                  </select>
                 </div>
               </div>
 
               {iaErro && (
-                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                <div className="flex items-start gap-2 p-3 bg-[#FFF2F2] border border-[#FDD5D5] rounded-lg text-sm text-[#5C0016]">
                   <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> {iaErro}
                 </div>
               )}
@@ -518,7 +526,7 @@ export default function AdminQuizzes() {
               <Button
                 onClick={handleGerarIA}
                 disabled={gerandoIA}
-                className="w-full bg-orange-500 hover:bg-orange-600 gap-2"
+                className="w-full bg-orange-500 hover:bg-orange-600 gap-2 flex items-center justify-center"
               >
                 {gerandoIA
                   ? <><Loader2 className="w-4 h-4 animate-spin" /> A gerar quiz...</>
@@ -537,7 +545,7 @@ export default function AdminQuizzes() {
                 <FileQuestion className="w-5 h-5 text-orange-600" /> Quizzes
               </CardTitle>
             </div>
-            <Button onClick={resetFormulario} className="bg-red-600 hover:bg-red-700 shrink-0" size="sm">
+            <Button onClick={resetFormulario} className="bg-[#800020] hover:bg-[#5C0016] shrink-0" size="sm">
               <PlusCircle className="w-4 h-4 mr-1.5" /> Novo Quiz
             </Button>
           </CardHeader>
@@ -548,7 +556,7 @@ export default function AdminQuizzes() {
               onClick={() => setAbaAtiva('todos')}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 abaAtiva === 'todos'
-                  ? 'border-red-600 text-red-700'
+                  ? 'border-[#800020] text-[#5C0016]'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
@@ -558,7 +566,7 @@ export default function AdminQuizzes() {
               onClick={() => setAbaAtiva('meus')}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 abaAtiva === 'meus'
-                  ? 'border-red-600 text-red-700'
+                  ? 'border-[#800020] text-[#5C0016]'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
@@ -625,7 +633,7 @@ export default function AdminQuizzes() {
                           </Button>
                           <Button size="sm" variant="outline"
                             onClick={() => { setDeleteId(quiz.id); setDeleteTitle(quiz.titulo) }}
-                            className="text-red-600 border-red-200 hover:bg-red-50 gap-1">
+                            className="text-[#800020] border-[#FDD5D5] hover:bg-[#FFF2F2] gap-1">
                             <Trash2 className="w-3.5 h-3.5" /> Apagar
                           </Button>
                         </>
@@ -663,7 +671,7 @@ export default function AdminQuizzes() {
               {/* Metadados */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Título <span className="text-red-500">*</span></label>
+                  <label className="text-sm font-medium text-slate-700">Título <span className="text-[#800020]">*</span></label>
                   <Input
                     placeholder="Ex: Economia Angolana — Básico"
                     value={quizForm.titulo}
@@ -675,7 +683,7 @@ export default function AdminQuizzes() {
                   <select
                     value={quizForm.categoria}
                     onChange={e => setQuizForm(f => ({ ...f, categoria: e.target.value }))}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-white"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#800020] bg-white"
                   >
                     <option value="">Selecionar...</option>
                     {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
@@ -690,6 +698,7 @@ export default function AdminQuizzes() {
                     rows={2} className="resize-none"
                   />
                 </div>
+
               </div>
 
               {/* Perguntas em acordeão */}
@@ -724,7 +733,7 @@ export default function AdminQuizzes() {
                             {perguntas.length > 1 && (
                               <button type="button"
                                 onClick={e => { e.stopPropagation(); removerPergunta(idx) }}
-                                className="p-1 text-red-400 hover:text-red-600 transition-colors">
+                                className="p-1 text-[#A0002A] hover:text-[#800020] transition-colors">
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             )}
@@ -735,7 +744,7 @@ export default function AdminQuizzes() {
                         {aberto && (
                           <div className="px-4 pb-5 space-y-4 border-t border-orange-100">
                             <div className="space-y-1.5 pt-4">
-                              <label className="text-sm font-medium text-slate-700">Texto da Pergunta <span className="text-red-500">*</span></label>
+                              <label className="text-sm font-medium text-slate-700">Texto da Pergunta <span className="text-[#800020]">*</span></label>
                               <Textarea
                                 placeholder="Escreve a pergunta..."
                                 value={p.pergunta}
@@ -747,7 +756,7 @@ export default function AdminQuizzes() {
                               {(['opcao_a', 'opcao_b', 'opcao_c', 'opcao_d'] as const).map((campo, oi) => (
                                 <div key={campo} className="space-y-1.5">
                                   <label className="text-sm font-medium text-slate-700">
-                                    Opção {['A', 'B', 'C', 'D'][oi]} <span className="text-red-500">*</span>
+                                    Opção {['A', 'B', 'C', 'D'][oi]} <span className="text-[#800020]">*</span>
                                   </label>
                                   <Input
                                     placeholder={`Opção ${['A', 'B', 'C', 'D'][oi]}`}
@@ -759,11 +768,11 @@ export default function AdminQuizzes() {
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               <div className="space-y-1.5">
-                                <label className="text-sm font-medium text-slate-700">Resposta Correcta <span className="text-red-500">*</span></label>
+                                <label className="text-sm font-medium text-slate-700">Resposta Correcta <span className="text-[#800020]">*</span></label>
                                 <select
                                   value={p.resposta_correta}
                                   onChange={e => updatePergunta(idx, 'resposta_correta', Number(e.target.value))}
-                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-white"
+                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#800020] bg-white"
                                 >
                                   <option value={1}>A — {p.opcao_a || 'Opção A'}</option>
                                   <option value={2}>B — {p.opcao_b || 'Opção B'}</option>
@@ -789,7 +798,7 @@ export default function AdminQuizzes() {
               </div>
 
               {formError && (
-                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                <div className="flex items-start gap-2 p-3 bg-[#FFF2F2] border border-[#FDD5D5] rounded-lg text-sm text-[#5C0016]">
                   <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> {formError}
                 </div>
               )}
@@ -798,7 +807,7 @@ export default function AdminQuizzes() {
                 {editingId !== null && (
                   <Button type="button" variant="outline" onClick={resetFormulario}>Cancelar</Button>
                 )}
-                <Button onClick={handleSave} disabled={saving} className="bg-red-600 hover:bg-red-700 flex-1 gap-2">
+                <Button onClick={handleSave} disabled={saving} className="bg-[#800020] hover:bg-[#5C0016] flex-1 gap-2">
                   <Save className="w-4 h-4" />
                   {saving ? 'A guardar...' : editingId !== null ? 'Guardar Alterações' : 'Criar Quiz'}
                 </Button>
@@ -813,7 +822,7 @@ export default function AdminQuizzes() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-slate-900">
-              <AlertTriangle className="w-5 h-5 text-red-600" /> Apagar Quiz
+              <AlertTriangle className="w-5 h-5 text-[#800020]" /> Apagar Quiz
             </DialogTitle>
             <DialogDescription>
               Tens a certeza que queres apagar <strong>"{deleteTitle}"</strong>?
@@ -822,7 +831,7 @@ export default function AdminQuizzes() {
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => { setDeleteId(null); setDeleteTitle('') }}>Cancelar</Button>
-            <Button onClick={handleApagar} disabled={deleting} className="bg-red-600 hover:bg-red-700">
+            <Button onClick={handleApagar} disabled={deleting} className="bg-[#800020] hover:bg-[#5C0016]">
               {deleting ? 'A apagar...' : 'Apagar'}
             </Button>
           </DialogFooter>

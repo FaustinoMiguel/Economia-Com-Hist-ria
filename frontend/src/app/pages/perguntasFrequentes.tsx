@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react';
+﻿import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 
 export default function PerguntasFrequentes() {
@@ -50,7 +50,7 @@ export default function PerguntasFrequentes() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       {/* Header */}
-      <section className="text-white py-24 px-6" style={{ background: '#C1121F' }}>
+      <section className="text-white py-24 px-6" style={{ background: '#800020' }}>
         <div className="max-w-4xl mx-auto">
           <h1 className="text-5xl font-bold mb-4">Perguntas Frequentes</h1>
           <p className="text-xl opacity-90">
@@ -99,7 +99,7 @@ export default function PerguntasFrequentes() {
           </p>
           <button
             className="px-8 py-3 text-white rounded-lg font-semibold hover:opacity-90 transition-opacity shadow-lg"
-            style={{ background: '#C1121F' }}
+            style={{ background: '#800020' }}
           >
             Contactar Suporte
           </button>

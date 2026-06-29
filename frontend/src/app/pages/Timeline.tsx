@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Calendar, TrendingUp, Users, Building2, Landmark, Factory, Globe, Coins } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -198,7 +198,7 @@ export default function Timeline() {
   const categories = [
     { id: 'all', label: 'Todos', color: 'bg-slate-100 text-slate-900' },
     { id: 'colonial', label: 'Período Colonial', color: 'bg-amber-100 text-amber-900' },
-    { id: 'independencia', label: 'Independência', color: 'bg-red-100 text-red-900' },
+    { id: 'independencia', label: 'Independência', color: 'bg-[#FEE8E8] text-[#3D0010]' },
     { id: 'guerra', label: 'Guerra Civil', color: 'bg-orange-100 text-orange-900' },
     { id: 'paz', label: 'Pós-Guerra', color: 'bg-green-100 text-green-900' },
     { id: 'moderna', label: 'Era Moderna', color: 'bg-blue-100 text-blue-900' },
@@ -216,13 +216,13 @@ export default function Timeline() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       {/* Header */}
-      <section className="bg-gradient-to-r from-red-600 to-red-700 text-white">
+      <section className="bg-gradient-to-r from-[#800020] to-[#5C0016] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="flex items-center space-x-3 mb-4">
             <Calendar className="w-8 h-8" />
             <h1 className="text-4xl font-bold">Linha do Tempo Histórica</h1>
           </div>
-          <p className="text-xl text-red-100 max-w-3xl">
+          <p className="text-xl text-[#FEE8E8] max-w-3xl">
             Explore os principais eventos históricos e económicos que moldaram Angola desde o período colonial até aos dias atuais
           </p>
         </div>
@@ -253,7 +253,7 @@ export default function Timeline() {
       <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="relative">
           {/* Timeline Line */}
-          <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gradient-to-b from-red-200 via-yellow-200 to-green-200"></div>
+          <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#FDD5D5] via-yellow-200 to-green-200"></div>
 
           {/* Events */}
           <div className="space-y-8">
@@ -262,7 +262,7 @@ export default function Timeline() {
               return (
                 <div key={index} className="relative pl-20">
                   {/* Timeline Dot */}
-                  <div className="absolute left-6 top-2 w-5 h-5 rounded-full bg-white border-4 border-red-500 shadow-lg"></div>
+                  <div className="absolute left-6 top-2 w-5 h-5 rounded-full bg-white border-4 border-[#800020] shadow-lg"></div>
                   
                   <Card className="hover:shadow-lg transition-shadow">
                     <CardHeader>
@@ -287,7 +287,7 @@ export default function Timeline() {
                       <ul className="space-y-2">
                         {event.details.map((detail, idx) => (
                           <li key={idx} className="flex items-start text-sm text-slate-600">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 mt-2 mr-3 flex-shrink-0"></span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#800020] mt-2 mr-3 flex-shrink-0"></span>
                             <span>{detail}</span>
                           </li>
                         ))}
@@ -307,7 +307,7 @@ export default function Timeline() {
           <h2 className="text-2xl font-bold mb-6">Contexto Histórico-Económico</h2>
           <div className="grid md:grid-cols-3 gap-6">
             <div>
-              <h3 className="font-semibold mb-2 text-red-400">Período Colonial (1482-1975)</h3>
+              <h3 className="font-semibold mb-2 text-[#A0002A]">Período Colonial (1482-1975)</h3>
               <p className="text-sm text-slate-300">
                 Economia baseada no comércio de escravos, posteriormente na agricultura de exportação e exploração de recursos naturais.
               </p>

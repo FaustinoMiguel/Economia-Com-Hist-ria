@@ -3,6 +3,7 @@ import {
   listSalas,
   createSala,
   getSala,
+  deleteSala,
   getMensagens,
   postMensagem,
   getMembros,
@@ -11,6 +12,7 @@ import {
 } from '../controllers/sala.controller.js'
 import { authenticate } from '../middlewares/authenticate.js'
 import { requireProfessorOuAdmin, requireAuth } from '../middlewares/requireRole.js'
+import { uploadForum } from '../middlewares/upload.js'
 
 export const salaRouter = Router()
 
@@ -23,9 +25,12 @@ salaRouter.post('/', authenticate, requireProfessorOuAdmin, createSala)
 // Detalhe de sala
 salaRouter.get('/:id', authenticate, requireAuth, getSala)
 
+// Apagar sala — criador ou admin (verificado no controller)
+salaRouter.delete('/:id', authenticate, requireAuth, deleteSala)
+
 // Mensagens
 salaRouter.get('/:id/mensagens', authenticate, requireAuth, getMensagens)
-salaRouter.post('/:id/mensagens', authenticate, requireAuth, postMensagem)
+salaRouter.post('/:id/mensagens', authenticate, requireAuth, uploadForum, postMensagem)
 
 // Gestão de membros — apenas criador (verificado no controller)
 salaRouter.get('/:id/membros', authenticate, requireAuth, getMembros)

@@ -1,4 +1,4 @@
-import { useAuth } from '../contexts/AuthContext';
+﻿import { useAuth } from '../contexts/AuthContext';
 import { apiRequest } from '../services/api';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -32,7 +32,7 @@ interface Topico {
 }
 
 export default function Profile() {
-  const { user, isAuthenticated, refreshUser } = useAuth();
+  const { user, isAuthenticated, refreshUser, isProfessorOuAdmin } = useAuth();
   const navigate = useNavigate();
   const [totalScore, setTotalScore] = useState(0);
   const [totalQuizzes, setTotalQuizzes] = useState(0);
@@ -92,30 +92,6 @@ export default function Profile() {
 
   // Artigos e Tópicos com mais detalhes
   const [artigos, setArtigos] = useState<Artigo[]>([
-    { 
-      id: 1, 
-      title: 'O Impacto da Diversificação Económica em Angola', 
-      date: '15 Mar 2026', 
-      views: 245,
-      content: 'A diversificação económica é um dos maiores desafios e oportunidades para Angola. Este artigo analisa as estratégias implementadas nos últimos anos e os resultados obtidos nos setores não petrolíferos.',
-      category: 'Economia'
-    },
-    { 
-      id: 2, 
-      title: 'Análise do Sector Agrícola Angolano', 
-      date: '10 Mar 2026', 
-      views: 189,
-      content: 'O sector agrícola angolano tem um enorme potencial ainda inexplorado. Este artigo explora as principais culturas, desafios e oportunidades para o desenvolvimento rural.',
-      category: 'Agricultura'
-    },
-    { 
-      id: 3, 
-      title: 'Perspectivas para o Investimento Estrangeiro', 
-      date: '5 Mar 2026', 
-      views: 312,
-      content: 'Angola tem atraído cada vez mais investimento estrangeiro. Este artigo analisa as tendências atuais e as perspetivas futuras para o investimento no país.',
-      category: 'Investimento'
-    }
   ]);
 
   const [topicos, setTopicos] = useState<Topico[]>([]);
@@ -175,8 +151,8 @@ export default function Profile() {
           name: user.name,
           email: user.email,
           province: user.province || 'Luanda',
-          institution: '',
-          course: ''
+          institution: user.institution || '',
+          course: user.course || '',
         });
       }
 
@@ -368,7 +344,7 @@ export default function Profile() {
           <CardContent>
             <Button
               onClick={() => setShowAuthPrompt(true)}
-              className="w-full bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-700 hover:to-yellow-700"
+              className="w-full bg-gradient-to-r from-[#800020] to-yellow-600 hover:from-[#5C0016] hover:to-yellow-700"
             >
               Entrar ou Cadastrar
             </Button>
@@ -389,15 +365,15 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       {/* Header */}
-      <section className="text-white" style={{ background: '#C1121F' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12" style={{ background: '#C1121F' }}>
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-6" style={{ background: '#C1121F' }}>
+      <section className="text-white" style={{ background: '#800020' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12" style={{ background: '#800020' }}>
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-6" style={{ background: '#800020' }}>
             <div className="relative">
               <Avatar className="w-28 h-28 border-4 border-white shadow-xl">
                 {profileImage ? (
                   <AvatarImage src={profileImage} alt={user.name} className="object-cover" />
                 ) : (
-                  <AvatarFallback className="text-2xl bg-gradient-to-br from-red-500 to-yellow-500 text-white">
+                  <AvatarFallback className="text-2xl bg-gradient-to-br from-[#800020] to-yellow-500 text-white">
                     {getUserInitials(user.name)}
                   </AvatarFallback>
                 )}
@@ -407,12 +383,12 @@ export default function Profile() {
                 className="absolute -bottom-2 -right-2 p-1.5 bg-white rounded-full shadow-md hover:bg-slate-100 transition-colors"
                 title="Editar foto"
               >
-                <Camera className="w-4 h-4 text-red-600" />
+                <Camera className="w-4 h-4 text-[#800020]" />
               </button>
             </div>
-            <div className="flex-1 text-center md:text-left" style={{ background: '#C1121F' }}>
+            <div className="flex-1 text-center md:text-left" style={{ background: '#800020' }}>
               <h1 className="text-3xl font-bold mb-2">{editedUser.name}</h1>
-              <div className="flex flex-col md:flex-row items-center gap-4 text-white/90 mb-4" style={{ background: '#C1121F' }}>
+              <div className="flex flex-col md:flex-row items-center gap-4 text-white/90 mb-4" style={{ background: '#800020' }}>
                 <div className="flex items-center gap-2">
                   <Mail className="w-4 h-4" />
                   <span>{editedUser.email}</span>
@@ -434,28 +410,30 @@ export default function Profile() {
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-shadow cursor-pointer" onClick={handleVerArtigos}>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center gap-2 text-blue-700 text-sm">
-                <FileText className="w-4 h-4" />
-                Artigos Publicados
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-blue-700">{artigos.length}</div>
-              <Button 
-                variant="link" 
-                className="text-blue-600 hover:text-blue-800 p-0 h-auto text-sm mt-1"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleVerArtigos();
-                }}
-              >
-                Ver artigos →
-              </Button>
-            </CardContent>
-          </Card>
+        <div className={`grid grid-cols-1 gap-5 mb-8 ${isProfessorOuAdmin ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
+          {isProfessorOuAdmin && (
+            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-shadow cursor-pointer" onClick={handleVerArtigos}>
+              <CardHeader className="pb-2">
+                <CardDescription className="flex items-center gap-2 text-blue-700 text-sm">
+                  <FileText className="w-4 h-4" />
+                  Artigos Publicados
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-blue-700">{artigos.length}</div>
+                <Button
+                  variant="link"
+                  className="text-blue-600 hover:text-blue-800 p-0 h-auto text-sm mt-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleVerArtigos();
+                  }}
+                >
+                  Ver artigos →
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 hover:shadow-lg transition-shadow">
             <CardHeader className="pb-2">
@@ -516,7 +494,7 @@ export default function Profile() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
-                <User className="w-5 h-5 text-red-600" />
+                <User className="w-5 h-5 text-[#800020]" />
                 Informações Pessoais
               </CardTitle>
             </CardHeader>
@@ -539,7 +517,7 @@ export default function Profile() {
                 <div>
                   <p className="text-xs text-slate-600 mb-0.5">Província</p>
                   <p className="font-semibold text-slate-900 text-sm flex items-center gap-2">
-                    <MapPin className="w-3.5 h-3.5 text-red-600" />
+                    <MapPin className="w-3.5 h-3.5 text-[#800020]" />
                     {editedUser.province}
                   </p>
                 </div>
@@ -549,7 +527,7 @@ export default function Profile() {
                 <div>
                   <p className="text-xs text-slate-600 mb-0.5">Universidade/Instituição</p>
                   <p className="font-semibold text-slate-900 text-sm flex items-center gap-2">
-                    <GraduationCap className="w-3.5 h-3.5 text-red-600" />
+                    <GraduationCap className="w-3.5 h-3.5 text-[#800020]" />
                     {editedUser.institution || 'Não informado'}
                   </p>
                 </div>
@@ -559,7 +537,7 @@ export default function Profile() {
                 <div>
                   <p className="text-xs text-slate-600 mb-0.5">Curso</p>
                   <p className="font-semibold text-slate-900 text-sm flex items-center gap-2">
-                    <BookOpen className="w-3.5 h-3.5 text-red-600" />
+                    <BookOpen className="w-3.5 h-3.5 text-[#800020]" />
                     {editedUser.course || 'Não informado'}
                   </p>
                 </div>
@@ -574,7 +552,7 @@ export default function Profile() {
 
               <Button 
                 onClick={() => setShowEditProfile(true)}
-                className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
+                className="w-full bg-gradient-to-r from-[#800020] to-[#5C0016] hover:from-[#5C0016] hover:to-[#5C0016] text-white"
               >
                 <Edit className="w-4 h-4 mr-2" />
                 Editar Perfil
@@ -605,7 +583,7 @@ export default function Profile() {
           <Card className="mt-6">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
-                <MapPin className="w-5 h-5 text-red-600" />
+                <MapPin className="w-5 h-5 text-[#800020]" />
                 Ranking Provincial - {user.province}
               </CardTitle>
               <CardDescription className="text-xs">
@@ -660,7 +638,7 @@ export default function Profile() {
         <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-              <FileText className="w-6 h-6 text-red-600" />
+              <FileText className="w-6 h-6 text-[#800020]" />
               Meus Artigos Publicados
             </DialogTitle>
             <DialogDescription className="sr-only">Lista dos seus artigos publicados na plataforma</DialogDescription>
@@ -701,7 +679,7 @@ export default function Profile() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleDeleteArtigo(artigo.id)}
-                          className="text-red-600 border-red-200 hover:bg-red-50"
+                          className="text-[#800020] border-[#FDD5D5] hover:bg-[#FFF2F2]"
                         >
                           <Trash2 className="w-3.5 h-3.5 mr-1" />
                           Excluir
@@ -768,7 +746,7 @@ export default function Profile() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleDeleteTopico(topico.id)}
-                          className="text-red-600 border-red-200 hover:bg-red-50"
+                          className="text-[#800020] border-[#FDD5D5] hover:bg-[#FFF2F2]"
                         >
                           <Trash2 className="w-3.5 h-3.5 mr-1" />
                           Excluir
@@ -930,7 +908,7 @@ export default function Profile() {
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <Edit className="w-5 h-5 text-red-600" />
+              <Edit className="w-5 h-5 text-[#800020]" />
               Editar Perfil
             </DialogTitle>
             <DialogDescription className="sr-only">Formulário para editar as informações do seu perfil</DialogDescription>
@@ -943,14 +921,14 @@ export default function Profile() {
                   {profileImage ? (
                     <AvatarImage src={profileImage} alt={editedUser.name} className="object-cover" />
                   ) : (
-                    <AvatarFallback className="text-xl bg-gradient-to-br from-red-500 to-yellow-500 text-white">
+                    <AvatarFallback className="text-xl bg-gradient-to-br from-[#800020] to-yellow-500 text-white">
                       {getUserInitials(editedUser.name)}
                     </AvatarFallback>
                   )}
                 </Avatar>
                 <button
                   onClick={handleEditPhoto}
-                  className="absolute -bottom-1 -right-1 p-1.5 bg-red-600 rounded-full shadow-md hover:bg-red-700 transition-colors"
+                  className="absolute -bottom-1 -right-1 p-1.5 bg-[#800020] rounded-full shadow-md hover:bg-[#5C0016] transition-colors"
                 >
                   <Camera className="w-3.5 h-3.5 text-white" />
                 </button>
@@ -984,7 +962,7 @@ export default function Profile() {
                 id="edit-province"
                 value={editedUser.province}
                 onChange={(e) => setEditedUser({ ...editedUser, province: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800020] focus:border-transparent"
               >
                 <option value="Luanda">Luanda</option>
                 <option value="Benguela">Benguela</option>
@@ -1040,7 +1018,7 @@ export default function Profile() {
             </Button>
             <Button
               onClick={handleSaveProfile}
-              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 rounded-xl"
+              className="bg-gradient-to-r from-[#800020] to-[#5C0016] hover:from-[#5C0016] hover:to-[#5C0016] rounded-xl"
             >
               Guardar Alterações
             </Button>

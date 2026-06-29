@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { Check, Edit3, Flag, MessageCircle, MoreVertical, Send, ThumbsUp, Trash2 } from "lucide-react";
 import api from "../../services/api";
 import type { Comment, Content, Toast } from "./types";
@@ -290,7 +290,7 @@ export function CommentSection({
                             setOpenCommentMenuId(null);
                           }}
                           role="menuitem"
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#800020] hover:bg-[#FFF2F2]"
                         >
                           <Trash2 className="w-4 h-4" />
                           Eliminar
@@ -312,7 +312,7 @@ export function CommentSection({
                           setOpenCommentMenuId(null);
                         }}
                         role="menuitem"
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#800020] hover:bg-[#FFF2F2]"
                       >
                         <Flag className="w-4 h-4" />
                         Denunciar
@@ -382,7 +382,7 @@ export function CommentSection({
                 }}
                 aria-label={likedComments[comment.id] ? `Remover gosto do comentário de ${comment.author}` : `Gostar do comentário de ${comment.author}`}
                 className={`flex items-center gap-1 text-xs transition-all ${
-                  likedComments[comment.id] ? "text-red-600 font-semibold" : `${isDarkMode ? 'text-gray-600 hover:text-purple-600' : 'text-slate-500 hover:text-red-600'}`
+                  likedComments[comment.id] ? "text-[#800020] font-semibold" : `${isDarkMode ? 'text-gray-600 hover:text-purple-600' : 'text-slate-500 hover:text-[#800020]'}`
                 }`}
               >
                 <ThumbsUp className="w-3.5 h-3.5" fill={likedComments[comment.id] ? "currentColor" : "none"} />
@@ -393,7 +393,7 @@ export function CommentSection({
                   e.stopPropagation();
                   handleLocalReply(comment.id);
                 }}
-                className={`text-xs ${isDarkMode ? 'text-gray-600 hover:text-purple-600' : 'text-slate-500 hover:text-red-600'} transition-colors font-medium`}
+                className={`text-xs ${isDarkMode ? 'text-gray-600 hover:text-purple-600' : 'text-slate-500 hover:text-[#800020]'} transition-colors font-medium`}
               >
                 Responder
               </button>
@@ -407,7 +407,7 @@ export function CommentSection({
                   value={localReplyText}
                   onChange={(e) => setLocalReplyText(e.target.value)}
                   rows={2}
-                  className={`w-full resize-none text-sm ${isDarkMode ? 'bg-white border-gray-300 text-slate-800' : 'border-slate-200'} focus:border-red-300 rounded-lg p-2`}
+                  className={`w-full resize-none text-sm ${isDarkMode ? 'bg-white border-gray-300 text-slate-800' : 'border-slate-200'} focus:border-[#FBBCB8] rounded-lg p-2`}
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
                 />
@@ -449,12 +449,12 @@ export function CommentSection({
   return (
     <div className={`mt-8 pt-6 border-t ${isDarkMode ? 'border-gray-200' : 'border-slate-200'}`}>
       <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-slate-800' : 'text-slate-900'} mb-6 flex items-center gap-2`}>
-        <MessageCircle className={`w-5 h-5 ${isDarkMode ? 'text-purple-600' : 'text-red-600'}`} />
+        <MessageCircle className={`w-5 h-5 ${isDarkMode ? 'text-purple-600' : 'text-[#800020]'}`} />
         Comentários ({comments.length})
       </h3>
 
       <div className="flex gap-3 mb-8">
-        <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 shadow-sm">
+        <div className="w-10 h-10 bg-gradient-to-br from-[#800020] to-[#5C0016] rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 shadow-sm">
           {getCurrentUserInitials()}
         </div>
         <div className="flex-1">
@@ -465,7 +465,7 @@ export function CommentSection({
               value={localNewComment}
               onChange={(e) => setLocalNewComment(e.target.value)}
               rows={3}
-              className={`w-full resize-none pr-12 ${isDarkMode ? 'bg-gray-50 border-gray-300 text-slate-800 placeholder:text-gray-400' : 'border-slate-200'} focus:border-red-300 focus:ring focus:ring-red-200 transition-all rounded-xl text-sm p-3`}
+              className={`w-full resize-none pr-12 ${isDarkMode ? 'bg-gray-50 border-gray-300 text-slate-800 placeholder:text-gray-400' : 'border-slate-200'} focus:border-[#FBBCB8] focus:ring focus:ring-[#FDD5D5] transition-all rounded-xl text-sm p-3`}
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => e.stopPropagation()}
               disabled={!isAuthenticated}

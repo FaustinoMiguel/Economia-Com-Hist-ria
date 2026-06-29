@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import React from 'react'
 import { motion } from 'motion/react'
 import {
   Video, Mic, FileText, Play, Headphones, BookOpen, Lock, Edit3, Trash2, RefreshCcw, Bookmark,
@@ -64,7 +64,7 @@ export function ContentCard({
         {/* Badge tipo */}
         <div className="absolute bottom-3 left-3 flex gap-1.5">
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase text-white bg-slate-950/80 backdrop-blur-xs">
-            {content.type === 'video'           && <Video    className="w-3 h-3 text-red-500"     />}
+            {content.type === 'video'           && <Video    className="w-3 h-3 text-[#800020]"     />}
             {content.type === 'podcast'         && <Mic      className="w-3 h-3 text-purple-500"  />}
             {content.type === 'texto_normal'    && <FileText className="w-3 h-3 text-emerald-500" />}
             {content.type === 'texto_jindungo'  && <FileText className="w-3 h-3 text-emerald-500" />}
@@ -169,7 +169,7 @@ export function ContentCard({
                 ) : accessInfo.status === 'rejeitado' ? (
                   <button
                     onClick={() => onAccessRequest(content)}
-                    className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-white border border-red-200 text-red-700 hover:bg-red-50 font-bold text-xs transition-colors"
+                    className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-white border border-[#FDD5D5] text-[#5C0016] hover:bg-[#FFF2F2] font-bold text-xs transition-colors"
                   >
                     <RefreshCcw className="w-4 h-4" />
                     <span>Solicitar novamente</span>
@@ -214,7 +214,7 @@ export function ContentCard({
               <span>·</span>
               <button
                 onClick={() => onDeleteStart(content.id)}
-                className="flex items-center gap-1 hover:text-red-600 transition-colors"
+                className="flex items-center gap-1 hover:text-[#800020] transition-colors"
               >
                 <Trash2 className="w-3 h-3" />
                 <span>Apagar</span>

@@ -109,7 +109,7 @@ export async function getMensagens(req: Request, res: Response) {
   params.push(limite)
 
   const [mensagens] = await pool.query<RowDataPacket[]>(
-    `SELECT m.id, m.mensagem, m.criado_em, u.id AS autor_id, u.nome AS autor_nome, u.avatar_url AS autor_avatar
+    `SELECT m.id, m.mensagem, m.ficheiro_url, m.ficheiro_nome, m.criado_em, u.id AS autor_id, u.nome AS autor_nome, u.avatar_url AS autor_avatar
      FROM mensagem_sala m
      JOIN utilizador u ON u.id = m.autor_id
      WHERE m.sala_id = ? ${cursor}
@@ -123,11 +123,14 @@ export async function getMensagens(req: Request, res: Response) {
 
 // ── POST /api/salas/:id/mensagens ─────────────────────────────────────────────
 export async function postMensagem(req: Request, res: Response) {
-  const userId = req.user!.userId
-  const salaId = req.params.id
+  const userId       = req.user!.userId
+  const salaId       = req.params.id
   const { mensagem } = req.body ?? {}
+  const ficheiro     = (req as any).file as Express.Multer.File | undefined
+  const ficheiroUrl  = ficheiro ? `/uploads/forum/${ficheiro.filename}` : null
+  const ficheiroNome = ficheiro ? ficheiro.originalname : null
 
-  if (!mensagem?.trim()) {
+  if (!mensagem?.trim() && !ficheiro) {
     return res.status(400).json({ message: 'Mensagem não pode estar vazia.' })
   }
 
@@ -150,12 +153,12 @@ export async function postMensagem(req: Request, res: Response) {
   }
 
   const [result] = await pool.query<ResultSetHeader>(
-    'INSERT INTO mensagem_sala (sala_id, autor_id, mensagem) VALUES (?, ?, ?)',
-    [salaId, userId, mensagem.trim()],
+    'INSERT INTO mensagem_sala (sala_id, autor_id, mensagem, ficheiro_url, ficheiro_nome) VALUES (?, ?, ?, ?, ?)',
+    [salaId, userId, mensagem?.trim() || '', ficheiroUrl, ficheiroNome],
   )
 
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT m.id, m.mensagem, m.criado_em, u.id AS autor_id, u.nome AS autor_nome, u.avatar_url AS autor_avatar
+    `SELECT m.id, m.mensagem, m.ficheiro_url, m.ficheiro_nome, m.criado_em, u.id AS autor_id, u.nome AS autor_nome, u.avatar_url AS autor_avatar
      FROM mensagem_sala m JOIN utilizador u ON u.id = m.autor_id WHERE m.id = ?`,
     [result.insertId],
   )
@@ -208,6 +211,27 @@ export async function updateMembro(req: Request, res: Response) {
   await pool.query(`UPDATE sala_membro SET ${updates.join(', ')} WHERE sala_id = ? AND utilizador_id = ?`, vals)
 
   res.json({ message: 'Membro atualizado.' })
+}
+
+// ── DELETE /api/salas/:id ─────────────────────────────────────────────────────
+export async function deleteSala(req: Request, res: Response) {
+  const userId = req.user!.userId
+  const role   = req.user!.role
+  const salaId = req.params.id
+
+  const [rows] = await pool.query<RowDataPacket[]>(
+    'SELECT criador_id FROM sala_discussao WHERE id = ?', [salaId],
+  )
+  if (!rows[0]) return res.status(404).json({ message: 'Sala não encontrada.' })
+
+  const isCriador = rows[0].criador_id === userId
+  const isAdmin   = role === 'admin' || role === 'superadmin'
+  if (!isCriador && !isAdmin) {
+    return res.status(403).json({ message: 'Apenas o criador ou um administrador pode apagar esta sala.' })
+  }
+
+  await pool.query('DELETE FROM sala_discussao WHERE id = ?', [salaId])
+  res.json({ message: 'Sala apagada.' })
 }
 
 // ── POST /api/salas/:id/solicitar-acesso ─────────────────────────────────────

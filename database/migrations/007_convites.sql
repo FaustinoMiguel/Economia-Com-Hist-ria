@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS convite (
   tipo            ENUM('sala','topico') NOT NULL,
   entidade_id     INT UNSIGNED NOT NULL,        -- sala_discussao.id ou topico_forum.id
   -- Quem convida
-  criador_id      INT UNSIGNED NOT NULL,
+  criador_id      INT(11) NOT NULL,
   -- Código único de acesso (8 chars alfanumérico)
   codigo          VARCHAR(12) NOT NULL UNIQUE,
   -- Opcionalmente enviado para um email específico

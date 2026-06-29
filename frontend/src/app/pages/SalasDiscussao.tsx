@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { apiRequest } from '../services/api'
 import { Button } from '../components/ui/button'
@@ -6,7 +6,9 @@ import { Input } from '../components/ui/input'
 import { Textarea } from '../components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../components/ui/dialog'
 import { Badge } from '../components/ui/badge'
-import { MessageSquare, Plus, Send, Users, Lock, ArrowLeft, Settings, UserCheck, UserX, Mail, Copy, Check } from 'lucide-react'
+import { MessageSquare, Plus, Send, Users, Lock, ArrowLeft, Settings, UserCheck, UserX, Mail, Copy, Check, Trash2, Paperclip, X as XIcon } from 'lucide-react'
+import FicheiroPreview from '../components/FicheiroPreview'
+import { getApiBase, getToken } from '../services/api'
 
 interface Sala {
   id: number
@@ -23,6 +25,8 @@ interface Sala {
 interface Mensagem {
   id: number
   mensagem: string
+  ficheiro_url?: string | null
+  ficheiro_nome?: string | null
   criado_em: string
   autor_id: number
   autor_nome: string
@@ -60,6 +64,9 @@ export default function SalasDiscussao() {
   const [codigoConvite, setCodigoConvite] = useState('')
   const [aUsarCodigo, setAUsarCodigo] = useState(false)
   const [copiado, setCopiado] = useState(false)
+  const [aApagarSala, setAApagarSala] = useState(false)
+  const [ficheiroAnexo, setFicheiroAnexo] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const mensagensEndRef = useRef<HTMLDivElement>(null)
 
   const isProfessorOuAdmin = user?.role === 'professor' || user?.role === 'admin' || user?.role === 'superadmin'
@@ -97,16 +104,32 @@ export default function SalasDiscussao() {
   }
 
   async function enviarMensagem() {
-    if (!novaMensagem.trim() || !salaAtiva || aEnviar) return
+    if ((!novaMensagem.trim() && !ficheiroAnexo) || !salaAtiva || aEnviar) return
     setAEnviar(true)
     try {
-      const data = await apiRequest<{ mensagem: Mensagem }>(`/salas/${salaAtiva.id}/mensagens`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mensagem: novaMensagem.trim() }),
-      })
+      let data: { mensagem: Mensagem }
+      if (ficheiroAnexo) {
+        const fd = new FormData()
+        fd.append('mensagem', novaMensagem.trim())
+        fd.append('ficheiro', ficheiroAnexo)
+        const resp = await fetch(`${getApiBase()}/salas/${salaAtiva.id}/mensagens`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${getToken()}` },
+          body: fd,
+        })
+        if (!resp.ok) throw new Error((await resp.json()).message ?? 'Erro ao enviar.')
+        data = await resp.json()
+      } else {
+        data = await apiRequest<{ mensagem: Mensagem }>(`/salas/${salaAtiva.id}/mensagens`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mensagem: novaMensagem.trim() }),
+        })
+      }
       setMensagens(prev => [...prev, data.mensagem])
       setNovaMensagem('')
+      setFicheiroAnexo(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     } catch {
       alert('Não foi possível enviar a mensagem.')
     } finally {
@@ -201,6 +224,19 @@ export default function SalasDiscussao() {
     }
   }
 
+  async function apagarSala(sala: Sala) {
+    if (!confirm(`Tens a certeza que queres apagar a sala "${sala.titulo}"? Esta acção não pode ser desfeita.`)) return
+    setAApagarSala(true)
+    try {
+      await apiRequest(`/salas/${sala.id}`, { method: 'DELETE' })
+      await carregarSalas()
+    } catch {
+      alert('Não foi possível apagar a sala.')
+    } finally {
+      setAApagarSala(false)
+    }
+  }
+
   function copiarCodigo() {
     navigator.clipboard.writeText(codigoCriado)
     setCopiado(true)
@@ -271,13 +307,18 @@ export default function SalasDiscussao() {
                   </div>
                 )}
                 <div className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#800020] to-orange-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                     {msg.autor_nome.substring(0, 2).toUpperCase()}
                   </div>
                   <div className={`max-w-[70%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-0.5`}>
                     {!isOwn && <span className="text-xs text-slate-500 px-1">{msg.autor_nome}</span>}
-                    <div className={`px-3 py-2 rounded-2xl text-sm ${isOwn ? 'bg-red-600 text-white rounded-tr-sm' : 'bg-white text-slate-800 shadow-sm rounded-tl-sm border border-slate-100'}`}>
-                      {msg.mensagem}
+                    <div className={`px-3 py-2 rounded-2xl text-sm ${isOwn ? 'bg-[#800020] text-white rounded-tr-sm' : 'bg-white text-slate-800 shadow-sm rounded-tl-sm border border-slate-100'}`}>
+                      {msg.mensagem && <span>{msg.mensagem}</span>}
+                      {msg.ficheiro_url && (
+                        <div className={msg.mensagem ? 'mt-2' : ''}>
+                          <FicheiroPreview ficheiroUrl={msg.ficheiro_url} ficheiroNome={msg.ficheiro_nome} />
+                        </div>
+                      )}
                     </div>
                     <span className="text-[10px] text-slate-400 px-1">{formatHora(msg.criado_em)}</span>
                   </div>
@@ -289,17 +330,40 @@ export default function SalasDiscussao() {
         </div>
 
         {/* Input de mensagem */}
-        <div className="px-4 py-3 border-t bg-white flex gap-2 items-end">
-          <Input
-            value={novaMensagem}
-            onChange={(e) => setNovaMensagem(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void enviarMensagem() } }}
-            placeholder="Escreve uma mensagem..."
-            className="flex-1 resize-none"
-          />
-          <Button onClick={enviarMensagem} disabled={aEnviar || !novaMensagem.trim()} className="bg-red-600 hover:bg-red-700 h-10 w-10 p-0">
-            <Send className="w-4 h-4" />
-          </Button>
+        <div className="px-4 py-3 border-t bg-white">
+          {ficheiroAnexo && (
+            <div className="flex items-center gap-2 mb-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
+              <Paperclip className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+              <span className="text-xs text-blue-700 truncate flex-1">{ficheiroAnexo.name}</span>
+              <span className="text-[10px] text-blue-400">({(ficheiroAnexo.size / 1024).toFixed(0)} KB)</span>
+              <button onClick={() => { setFicheiroAnexo(null); if (fileInputRef.current) fileInputRef.current.value = '' }} className="text-blue-400 hover:text-[#800020] ml-1">
+                <XIcon className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+          <div className="flex gap-2 items-end">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              id="sala-ficheiro"
+              accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
+              onChange={(e) => setFicheiroAnexo(e.target.files?.[0] ?? null)}
+            />
+            <label htmlFor="sala-ficheiro" className="flex items-center justify-center h-10 w-10 rounded-lg border border-slate-200 hover:border-[#FBBCB8] hover:text-[#800020] text-slate-400 cursor-pointer transition-colors shrink-0">
+              <Paperclip className="w-4 h-4" />
+            </label>
+            <Input
+              value={novaMensagem}
+              onChange={(e) => setNovaMensagem(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void enviarMensagem() } }}
+              placeholder="Escreve uma mensagem..."
+              className="flex-1 resize-none"
+            />
+            <Button onClick={enviarMensagem} disabled={aEnviar || (!novaMensagem.trim() && !ficheiroAnexo)} className="bg-[#800020] hover:bg-[#5C0016] h-10 w-10 p-0 shrink-0">
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Modal Criar Convite */}
@@ -341,7 +405,7 @@ export default function SalasDiscussao() {
             <DialogFooter className="mt-4">
               <Button variant="outline" onClick={() => { setShowConvidar(false); setCodigoCriado('') }}>Fechar</Button>
               {!codigoCriado && (
-                <Button onClick={criarConvite} disabled={aCriarConvite} className="bg-red-600 hover:bg-red-700">
+                <Button onClick={criarConvite} disabled={aCriarConvite} className="bg-[#800020] hover:bg-[#5C0016]">
                   {aCriarConvite ? 'A criar...' : 'Gerar Convite'}
                 </Button>
               )}
@@ -400,7 +464,7 @@ export default function SalasDiscussao() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <MessageSquare className="w-7 h-7 text-red-600" /> Salas de Discussão
+            <MessageSquare className="w-7 h-7 text-[#800020]" /> Salas de Discussão
           </h1>
           <p className="text-slate-500 text-sm mt-1">Espaços privados de conversa geridos por professores</p>
         </div>
@@ -409,7 +473,7 @@ export default function SalasDiscussao() {
             <Copy className="w-4 h-4" /> Usar Código
           </Button>
           {isProfessorOuAdmin && (
-            <Button onClick={() => setShowCriar(true)} className="bg-red-600 hover:bg-red-700 gap-2">
+            <Button onClick={() => setShowCriar(true)} className="bg-[#800020] hover:bg-[#5C0016] gap-2">
               <Plus className="w-4 h-4" /> Nova Sala
             </Button>
           )}
@@ -430,31 +494,45 @@ export default function SalasDiscussao() {
         </div>
       ) : (
         <div className="space-y-3">
-          {salas.map(sala => (
-            <button
-              key={sala.id}
-              onClick={() => abrirSala(sala)}
-              className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-red-300 hover:bg-red-50 transition-all group"
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0 group-hover:bg-red-200 transition-colors">
-                  <MessageSquare className="w-5 h-5 text-red-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-slate-900 truncate">{sala.titulo}</h3>
-                    {sala.so_membros_comentam ? <Lock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" /> : null}
+          {salas.map(sala => {
+            const podeApagar = sala.criador_id === user?.id || isProfessorOuAdmin
+            return (
+              <div key={sala.id} className="relative group">
+                <button
+                  onClick={() => abrirSala(sala)}
+                  className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-[#FBBCB8] hover:bg-[#FFF2F2] transition-all"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#FEE8E8] flex items-center justify-center flex-shrink-0 group-hover:bg-[#FDD5D5] transition-colors">
+                      <MessageSquare className="w-5 h-5 text-[#800020]" />
+                    </div>
+                    <div className="flex-1 min-w-0 pr-8">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-slate-900 truncate">{sala.titulo}</h3>
+                        {sala.so_membros_comentam ? <Lock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" /> : null}
+                      </div>
+                      {sala.descricao && <p className="text-sm text-slate-500 truncate mt-0.5">{sala.descricao}</p>}
+                      <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-400">
+                        <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {sala.total_membros} membros</span>
+                        <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" /> {sala.total_mensagens} mensagens</span>
+                        <span>criado por {sala.criador_nome}</span>
+                      </div>
+                    </div>
                   </div>
-                  {sala.descricao && <p className="text-sm text-slate-500 truncate mt-0.5">{sala.descricao}</p>}
-                  <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-400">
-                    <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {sala.total_membros} membros</span>
-                    <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" /> {sala.total_mensagens} mensagens</span>
-                    <span>criado por {sala.criador_nome}</span>
-                  </div>
-                </div>
+                </button>
+                {podeApagar && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); void apagarSala(sala) }}
+                    disabled={aApagarSala}
+                    className="absolute top-1/2 -translate-y-1/2 right-3 p-1.5 rounded-lg text-slate-300 hover:text-[#800020] hover:bg-[#FFF2F2] transition-colors opacity-0 group-hover:opacity-100"
+                    title="Apagar sala"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
-            </button>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -476,7 +554,7 @@ export default function SalasDiscussao() {
           </div>
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setShowUsarCodigo(false)}>Cancelar</Button>
-            <Button onClick={usarCodigo} disabled={aUsarCodigo || !codigoConvite.trim()} className="bg-red-600 hover:bg-red-700">
+            <Button onClick={usarCodigo} disabled={aUsarCodigo || !codigoConvite.trim()} className="bg-[#800020] hover:bg-[#5C0016]">
               {aUsarCodigo ? 'A verificar...' : 'Entrar'}
             </Button>
           </DialogFooter>
@@ -523,7 +601,7 @@ export default function SalasDiscussao() {
           </div>
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setShowCriar(false)}>Cancelar</Button>
-            <Button onClick={criarSala} disabled={aCriarSala || !novaSala.titulo.trim()} className="bg-red-600 hover:bg-red-700">
+            <Button onClick={criarSala} disabled={aCriarSala || !novaSala.titulo.trim()} className="bg-[#800020] hover:bg-[#5C0016]">
               {aCriarSala ? 'A criar...' : 'Criar Sala'}
             </Button>
           </DialogFooter>

@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router'
+﻿import { Navigate } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 
 interface ProtectedRouteProps {
@@ -15,7 +15,7 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-red-600" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-[#800020]" />
       </div>
     )
   }

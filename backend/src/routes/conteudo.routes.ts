@@ -16,9 +16,9 @@ export const conteudoRouter = Router()
 conteudoRouter.get('/',    listConteudos)
 conteudoRouter.get('/:id', getConteudoById)
 
-// Escrita — apenas admins (em produção podes alargar a 'subscrito' se quiseres)
-conteudoRouter.post  ('/',    authenticate, requireAdmin, createConteudo)
-conteudoRouter.put   ('/:id', authenticate, requireAdmin, updateConteudo)
+// Escrita — professores e admins
+conteudoRouter.post  ('/',    authenticate, requireProfessorOuAdmin, createConteudo)
+conteudoRouter.put   ('/:id', authenticate, requireProfessorOuAdmin, updateConteudo)
 conteudoRouter.delete('/:id', authenticate, requireProfessorOuAdmin, deleteConteudo)
 
 // Solicitar acesso a texto com Jindungo — utilizador autenticado

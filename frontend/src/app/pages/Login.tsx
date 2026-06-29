@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router';
 import {
   BookOpen, LogIn, UserPlus, Mail, Lock, User,
@@ -53,7 +53,7 @@ function Field({ icon: Icon, children }: { icon: React.ElementType; children: Re
 
 const inputCls =
   'w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg ' +
-  'focus:ring-2 focus:ring-[#C1121F] focus:border-transparent ' +
+  'focus:ring-2 focus:ring-[#800020] focus:border-transparent ' +
   'transition-all duration-200 bg-white cursor-text ' +
   'hover:border-slate-400';
 
@@ -171,7 +171,7 @@ export default function Login() {
           <Link to="/" className="flex items-center justify-center space-x-3 mb-8 cursor-pointer group">
             <div
               className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-105"
-              style={{ background: 'linear-gradient(135deg,#C1121F,#8B0000)' }}
+              style={{ background: 'linear-gradient(135deg,#800020,#8B0000)' }}
             >
               <BookOpen className="w-7 h-7 text-white" />
             </div>
@@ -190,7 +190,7 @@ export default function Login() {
                 <div
                   className="h-1"
                   style={{
-                    background: 'linear-gradient(90deg,#C1121F,#ff4d5a)',
+                    background: 'linear-gradient(90deg,#800020,#ff4d5a)',
                     width: '60%',
                     animation: 'pulse-bar 1s ease infinite',
                     borderRadius: 4,
@@ -209,8 +209,8 @@ export default function Login() {
                     onClick={() => switchMode(tab === 'login')}
                     className="flex-1 py-3 text-sm font-medium transition-all duration-200 cursor-pointer hover:bg-slate-50"
                     style={{
-                      color:       active ? '#C1121F' : '#94a3b8',
-                      borderBottom: active ? '2px solid #C1121F' : '2px solid transparent',
+                      color:       active ? '#800020' : '#94a3b8',
+                      borderBottom: active ? '2px solid #800020' : '2px solid transparent',
                       background:  'transparent',
                     }}
                   >
@@ -221,7 +221,7 @@ export default function Login() {
             </div>
 
             <CardHeader className="space-y-1 pb-2">
-              <CardTitle className="text-xl text-center" style={{ color:'#C1121F' }}>
+              <CardTitle className="text-xl text-center" style={{ color:'#800020' }}>
                 {isLogin ? 'Bem-vindo de volta' : 'Crie a sua conta'}
               </CardTitle>
               <CardDescription className="text-center text-slate-500 text-sm">
@@ -303,7 +303,7 @@ export default function Login() {
                       {isLogin && (
                         <Link
                           to="/recuperar-senha"
-                          className="text-xs text-[#C1121F] hover:text-[#8B0000] hover:underline font-medium transition-colors cursor-pointer"
+                          className="text-xs text-[#800020] hover:text-[#8B0000] hover:underline font-medium transition-colors cursor-pointer"
                           tabIndex={-1}
                         >
                           Esqueceu a senha?
@@ -318,7 +318,7 @@ export default function Login() {
 
                   {/* Erro */}
                   {error && (
-                    <div className="anim-fade-up flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 p-3 rounded-lg">
+                    <div className="anim-fade-up flex items-center gap-2 text-[#800020] bg-[#FFF2F2] border border-[#FDD5D5] p-3 rounded-lg">
                       <AlertCircle className="w-5 h-5 flex-shrink-0" />
                       <p className="text-sm">{error}</p>
                     </div>
@@ -329,7 +329,7 @@ export default function Login() {
                     type="submit"
                     disabled={loading}
                     className="w-full text-white font-semibold py-2.5 rounded-lg transition-all duration-200 hover:shadow-lg hover:brightness-110 active:scale-95"
-                    style={{ background: 'linear-gradient(135deg,#C1121F,#8B0000)' }}
+                    style={{ background: 'linear-gradient(135deg,#800020,#8B0000)' }}
                   >
                     {loading ? (
                       <span className="flex items-center justify-center gap-2">

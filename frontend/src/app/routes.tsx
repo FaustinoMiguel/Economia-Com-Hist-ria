@@ -18,10 +18,14 @@ import Layout             from './components/Layout'
 import ProtectedRoute     from './components/ProtectedRoute'
 
 export const router = createBrowserRouter([
-  // ── Rotas públicas sem Layout ────────────────────────────────────────────
+  // ── Rotas sem Layout (navbar própria ou sem navbar) ─────────────────────
   { path: '/login',            Component: Login },
   { path: '/recuperar-senha',  Component: RecuperarSenha },
   { path: '/redefinir-senha',  Component: RedefinirSenha },
+  {
+    path: '/admin/quizzes',
+    element: <ProtectedRoute requireAdmin><AdminQuizzes /></ProtectedRoute>,
+  },
 
   // ── Layout principal (com navbar) ────────────────────────────────────────
   {
@@ -45,14 +49,10 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute><Notifications /></ProtectedRoute>,
       },
 
-      // ── Backoffice (só admin) — dentro do Layout para ter a navbar ────────
+      // ── Backoffice (só admin) ─────────────────────────────────────────────
       {
         path: 'admin',
         element: <ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>,
-      },
-      {
-        path: 'admin/quizzes',
-        element: <ProtectedRoute requireAdmin><AdminQuizzes /></ProtectedRoute>,
       },
     ],
   },

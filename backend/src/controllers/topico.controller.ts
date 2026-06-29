@@ -33,11 +33,21 @@ export async function listTopicos(req: Request, res: Response) {
   const params: unknown[] = []
   let meuVotoSel = ''
   let meuVotoJoin = ''
+  let acessoSel = ''
+  let acessoJoin = ''
+  const userRole = req.user?.role ?? ''
+  const isAdmin  = userRole === 'admin' || userRole === 'superadmin'
+
   if (userId) {
     meuVotoSel  = ', vt.valor AS meu_voto'
     meuVotoJoin = 'LEFT JOIN voto_topico vt ON vt.topico_id = t.id AND vt.utilizador_id = ?'
-    params.push(userId)
+    acessoSel   = ', tpa.status AS acesso_pedido'
+    acessoJoin  = 'LEFT JOIN topico_privado_acesso tpa ON tpa.topico_id = t.id AND tpa.subscrito_id = ?'
+    params.push(userId, userId)
   }
+
+  // Para criadores e admins: conta pedidos pendentes nos tópicos privados
+  const pedidosSel  = userId ? ', (SELECT COUNT(*) FROM topico_privado_acesso p WHERE p.topico_id = t.id AND p.status = \'pendente\') AS pedidos_pendentes' : ''
 
   const where: string[] = []
   if (categoria && !['all', 'todas', 'todos'].includes(categoria.toLowerCase())) {
@@ -65,10 +75,11 @@ export async function listTopicos(req: Request, res: Response) {
     `SELECT t.id, t.titulo, t.descricao, t.criado_por, t.tipo_privacidade, t.categoria, t.tags,
             t.requires_access, t.fixado, t.resolvido, t.resposta_aceite_id,
             t.likes, t.votos, t.respostas, t.visualizacoes, t.criado_em, t.ultima_atividade,
-            u.nome AS autor_nome, u.avatar_url AS autor_avatar, u.tipo AS autor_tipo${meuVotoSel}
+            u.nome AS autor_nome, u.avatar_url AS autor_avatar, u.tipo AS autor_tipo${meuVotoSel}${acessoSel}${pedidosSel}
      FROM topico_forum t
      JOIN utilizador u ON u.id = t.criado_por
      ${meuVotoJoin}
+     ${acessoJoin}
      ${whereClause}
      ORDER BY t.fixado DESC, ${orderBy}`,
     params,
@@ -271,6 +282,31 @@ export async function solicitarAcessoTopico(req: Request, res: Response) {
        VALUES (?, ?, ?)`,
       [topicoId, userId, motivo],
     )
+
+    // Notifica o criador do tópico
+    const [topicoRows] = await pool.query<RowDataPacket[]>(
+      'SELECT criado_por, titulo FROM topico_forum WHERE id = ? LIMIT 1',
+      [topicoId],
+    )
+    const topico = topicoRows[0]
+    const [solicitante] = await pool.query<RowDataPacket[]>(
+      'SELECT nome FROM utilizador WHERE id = ? LIMIT 1',
+      [userId],
+    )
+    if (topico && topico['criado_por'] !== userId) {
+      await pool.query(
+        `INSERT INTO notificacao (usuario_id, tipo, entidade_id, titulo, mensagem, link_destino)
+         VALUES (?, 'pedido_acesso_topico', ?, ?, ?, ?)`,
+        [
+          topico['criado_por'],
+          topicoId,
+          'Pedido de acesso ao teu tópico',
+          `${solicitante[0]?.['nome'] ?? 'Alguém'} pediu acesso ao tópico "${topico['titulo']}"`,
+          `/forum?topico=${topicoId}`,
+        ],
+      )
+    }
+
     return res.status(201).json({ message: 'Solicitação de acesso enviada com sucesso.' })
   } catch (err: any) {
     if (err?.code === 'ER_DUP_ENTRY') {
@@ -279,6 +315,99 @@ export async function solicitarAcessoTopico(req: Request, res: Response) {
     console.error('solicitarAcessoTopico:', err)
     return res.status(500).json({ message: 'Erro interno do servidor.' })
   }
+}
+
+// ── DELETE /api/topicos/:id/solicitar-acesso ──────────────────────────────────
+// Cancela o próprio pedido de acesso enquanto está pendente
+export async function cancelarAcessoTopico(req: Request, res: Response) {
+  const userId   = req.user!.userId
+  const topicoId = Number(req.params.id)
+
+  const [result] = await pool.query<ResultSetHeader>(
+    `DELETE FROM topico_privado_acesso
+     WHERE topico_id = ? AND subscrito_id = ? AND status = 'pendente'`,
+    [topicoId, userId],
+  )
+  if (result.affectedRows === 0) {
+    return res.status(404).json({ message: 'Pedido pendente não encontrado.' })
+  }
+  res.json({ message: 'Pedido de acesso cancelado.' })
+}
+
+// ── GET /api/topicos/:id/pedidos-acesso ───────────────────────────────────────
+// Lista pedidos pendentes — apenas o criador do tópico pode ver
+export async function listarPedidosAcesso(req: Request, res: Response) {
+  const userId   = req.user!.userId
+  const topicoId = Number(req.params.id)
+
+  const role = req.user!.role
+  const isAdmin = role === 'admin' || role === 'superadmin'
+
+  const [dono] = await pool.query<RowDataPacket[]>(
+    'SELECT criado_por FROM topico_forum WHERE id = ? LIMIT 1', [topicoId],
+  )
+  if (!dono[0]) return res.status(404).json({ message: 'Tópico não encontrado.' })
+  if (dono[0]['criado_por'] !== userId && !isAdmin) return res.status(403).json({ message: 'Sem permissão.' })
+
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT tpa.id, tpa.subscrito_id, tpa.status, tpa.motivo, tpa.solicitado_em AS criado_em,
+            u.nome, u.email, u.avatar_url
+     FROM topico_privado_acesso tpa
+     JOIN utilizador u ON u.id = tpa.subscrito_id
+     WHERE tpa.topico_id = ? AND tpa.status = 'pendente'
+     ORDER BY tpa.solicitado_em ASC`,
+    [topicoId],
+  )
+  res.json({ pedidos: rows })
+}
+
+// ── PATCH /api/topicos/:id/pedidos-acesso/:pedidoId ───────────────────────────
+// Aprovar ou rejeitar — apenas o criador do tópico
+export async function responderPedidoAcesso(req: Request, res: Response) {
+  const userId   = req.user!.userId
+  const topicoId = Number(req.params.id)
+  const pedidoId = Number(req.params.pedidoId)
+  const { acao } = req.body ?? {} // 'aprovar' | 'rejeitar'
+
+  if (!['aprovar', 'rejeitar'].includes(acao)) {
+    return res.status(400).json({ message: 'Acção inválida. Use "aprovar" ou "rejeitar".' })
+  }
+
+  const role = req.user!.role
+  const isAdmin = role === 'admin' || role === 'superadmin'
+
+  const [dono] = await pool.query<RowDataPacket[]>(
+    'SELECT criado_por, titulo FROM topico_forum WHERE id = ? LIMIT 1', [topicoId],
+  )
+  if (!dono[0]) return res.status(404).json({ message: 'Tópico não encontrado.' })
+  if (dono[0]['criado_por'] !== userId && !isAdmin) return res.status(403).json({ message: 'Sem permissão.' })
+
+  const novoStatus = acao === 'aprovar' ? 'aprovado' : 'rejeitado'
+
+  const [result] = await pool.query<ResultSetHeader>(
+    `UPDATE topico_privado_acesso SET status = ?, admin_responsavel = ? WHERE id = ? AND topico_id = ?`,
+    [novoStatus, userId, pedidoId, topicoId],
+  )
+  if (result.affectedRows === 0) return res.status(404).json({ message: 'Pedido não encontrado.' })
+
+  // Notifica o solicitante
+  const [pedido] = await pool.query<RowDataPacket[]>(
+    'SELECT subscrito_id FROM topico_privado_acesso WHERE id = ? LIMIT 1', [pedidoId],
+  )
+  if (pedido[0]) {
+    const tipo = acao === 'aprovar' ? 'acesso_topico_aprovado' : 'pedido_acesso_topico'
+    const titulo = acao === 'aprovar' ? 'Acesso aprovado!' : 'Pedido de acesso rejeitado'
+    const mensagem = acao === 'aprovar'
+      ? `O teu pedido de acesso ao tópico "${dono[0]['titulo']}" foi aprovado.`
+      : `O teu pedido de acesso ao tópico "${dono[0]['titulo']}" foi rejeitado.`
+    await pool.query(
+      `INSERT INTO notificacao (usuario_id, tipo, entidade_id, titulo, mensagem, link_destino)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [pedido[0]['subscrito_id'], tipo, topicoId, titulo, mensagem, `/forum?topico=${topicoId}`],
+    )
+  }
+
+  res.json({ message: acao === 'aprovar' ? 'Acesso aprovado.' : 'Pedido rejeitado.' })
 }
 
 // ── POST /api/topicos/:id/votar ───────────────────────────────────────────────

@@ -6,6 +6,9 @@ import {
   listTopicos,
   updateTopico,
   solicitarAcessoTopico,
+  cancelarAcessoTopico,
+  listarPedidosAcesso,
+  responderPedidoAcesso,
   votarTopico,
   fixarTopico,
   resolverTopico,
@@ -37,7 +40,11 @@ topicoRouter.put   ('/:id', authenticate, requireAuth, updateTopico)
 topicoRouter.delete('/:id', authenticate, requireAuth, deleteTopico)
 
 // Solicitar acesso a tópico privado — utilizador autenticado
-topicoRouter.post('/:id/solicitar-acesso', authenticate, requireAuth, solicitarAcessoTopico)
+topicoRouter.post  ('/:id/solicitar-acesso',             authenticate, requireAuth, solicitarAcessoTopico)
+topicoRouter.delete('/:id/solicitar-acesso',             authenticate, requireAuth, cancelarAcessoTopico)
+// Gerir pedidos de acesso — apenas o criador do tópico
+topicoRouter.get  ('/:id/pedidos-acesso',                authenticate, requireAuth, listarPedidosAcesso)
+topicoRouter.patch('/:id/pedidos-acesso/:pedidoId',      authenticate, requireAuth, responderPedidoAcesso)
 
 // Denunciar tópico — utilizador autenticado
 topicoRouter.post('/:id/denunciar', authenticate, requireAuth, denunciarTopico)

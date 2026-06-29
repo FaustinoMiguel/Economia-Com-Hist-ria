@@ -1,4 +1,4 @@
-import { MapPin, TrendingUp, BarChart3, PieChart, ArrowRight, Check, X, Trophy, Medal, Award, Filter, Lock, Timer, Volume2, Landmark, Banknote, Factory, Building, Wheat, Globe, Heart, Scale, GraduationCap, ShoppingBag, Truck, Coins, Target, Users, Leaf, Sun, Cloud, Droplets, Mountain, Waves, Gem, Pickaxe, Ship, Plane, Train, Car, Bike, Bus, Home, Utensils, Wifi, Phone, Laptop, Smartphone, Tv, Watch, Camera, Video, Music, Book, Pen, Scissors, Shirt, Shoe, Ring, Gift, Cake, Coffee, Beer, Wine, Pizza, Burger, Apple, Carrot, Fish, Egg, Bread, Milk, Snowflake, Flame, Zap, Wind, Battery, Plug, Lightbulb, Settings, Tool, Wrench, Hammer, Trash, Recycle, Tree, Flower, Sprout, Seedling, Garden, Dog, Cat, Bird, Bug, Dragon, Dinosaur, Rocket, Space, Planet, Star, Moon, Rainbow, Umbrella, Compass, Map, Flag, Shield, Key, Eye, Ear, Mouth, Brain, Bone, Hand, Foot, Arm, Leg, HeartPulse, Stethoscope, Pill, Hospital, Ambulance, Fire, Police, PlusCircle } from 'lucide-react';
+﻿import { MapPin, TrendingUp, BarChart3, PieChart, ArrowRight, Check, X, Trophy, Medal, Award, Filter, Lock, Timer, Volume2, Landmark, Banknote, Factory, Building, Wheat, Globe, Heart, Scale, GraduationCap, ShoppingBag, Truck, Coins, Target, Users, Leaf, Sun, Cloud, Droplets, Mountain, Waves, Gem, Pickaxe, Ship, Plane, Train, Car, Bike, Bus, Home, Utensils, Wifi, Phone, Laptop, Smartphone, Tv, Watch, Camera, Video, Music, Book, Pen, Scissors, Shirt, Shoe, Ring, Gift, Cake, Coffee, Beer, Wine, Pizza, Burger, Apple, Carrot, Fish, Egg, Bread, Milk, Snowflake, Flame, Zap, Wind, Battery, Plug, Lightbulb, Settings, Tool, Wrench, Hammer, Trash, Recycle, Tree, Flower, Sprout, Seedling, Garden, Dog, Cat, Bird, Bug, Dragon, Dinosaur, Rocket, Space, Planet, Star, Moon, Rainbow, Umbrella, Compass, Map, Flag, Shield, Key, Eye, Ear, Mouth, Brain, Bone, Hand, Foot, Arm, Leg, HeartPulse, Stethoscope, Pill, Hospital, Ambulance, Fire, Police, PlusCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -287,7 +287,7 @@ export default function Resources() {
     historia: {
       title: 'Quiz de História',
       color: 'red',
-      icon: <Landmark className="w-8 h-8 text-red-600" />,
+      icon: <Landmark className="w-8 h-8 text-[#800020]" />,
       description: 'Explore a história económica de Angola',
       expandedDescription: 'Viaje pela história económica de Angola com 10 perguntas que abrangem desde a independência até os dias atuais. Descubra como os eventos históricos moldaram a economia nacional e teste seus conhecimentos sobre os momentos mais importantes do desenvolvimento do país.',
       thumbnail: 'https://images.unsplash.com/photo-1753892208873-3759f0734ae1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxBZnJpY2FuJTIwc3R1ZGVudHMlMjBsZWFybmluZyUyMGhpc3Rvcnl8ZW58MXx8fHwxNzc5Mzc0OTY1fDA&ixlib=rb-4.1.0&q=80&w=1080',
@@ -1125,7 +1125,7 @@ export default function Resources() {
 
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-        <section className="bg-gradient-to-r from-red-600 via-red-700 to-red-800 text-white">
+        <section className="bg-gradient-to-r from-[#800020] via-[#5C0016] to-[#5C0016] text-white">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -1151,14 +1151,14 @@ export default function Resources() {
                 <div className="font-bold">{score} pts</div>
               </div>
               <div className={`backdrop-blur-sm rounded-lg p-3 ${
-                isTimeCritical ? 'bg-red-500/30 animate-pulse' :
+                isTimeCritical ? 'bg-[#800020]/30 animate-pulse' :
                 isTimeWarning  ? 'bg-yellow-500/30' :
                 'bg-white/10'
               }`}>
                 <div className="text-xs opacity-75 mb-1 flex items-center gap-1">
                   <Timer className="w-3 h-3" />Tempo
                 </div>
-                <div className={`font-bold ${isTimeCritical ? 'text-red-200' : isTimeWarning ? 'text-yellow-200' : ''}`}>
+                <div className={`font-bold ${isTimeCritical ? 'text-[#FDD5D5]' : isTimeWarning ? 'text-yellow-200' : ''}`}>
                   {timeRemaining}s
                 </div>
               </div>
@@ -1179,7 +1179,7 @@ export default function Resources() {
               <div className="bg-white/20 rounded-full h-3 overflow-hidden">
                 <div
                   className={`h-3 rounded-full transition-all duration-1000 ${
-                    isTimeCritical ? 'bg-red-400' :
+                    isTimeCritical ? 'bg-[#A0002A]' :
                     isTimeWarning  ? 'bg-yellow-400' :
                     'bg-green-400'
                   }`}
@@ -1192,8 +1192,8 @@ export default function Resources() {
 
         <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           {selectedAnswer === -1 && (
-            <div className="mb-6 p-4 bg-red-50 border-2 border-red-500 rounded-lg">
-              <div className="flex items-center gap-3 text-red-700">
+            <div className="mb-6 p-4 bg-[#FFF2F2] border-2 border-[#800020] rounded-lg">
+              <div className="flex items-center gap-3 text-[#5C0016]">
                 <Timer className="w-6 h-6" />
                 <div>
                   <p className="font-bold">Tempo Esgotado!</p>
@@ -1222,9 +1222,9 @@ export default function Resources() {
                     disabled={selectedAnswer !== null}
                     className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
                       showCorrect ? 'border-green-500 bg-green-50' :
-                      showWrong   ? 'border-red-500 bg-red-50' :
-                      isSelected  ? 'bg-red-50 border-red-300' :
-                      'border-slate-200 hover:border-red-300 hover:bg-red-50/30'
+                      showWrong   ? 'border-[#800020] bg-[#FFF2F2]' :
+                      isSelected  ? 'bg-[#FFF2F2] border-[#FBBCB8]' :
+                      'border-slate-200 hover:border-[#FBBCB8] hover:bg-[#FFF2F2]/30'
                     } ${selectedAnswer !== null ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                   >
                     <div className="flex items-center justify-between">
@@ -1235,7 +1235,7 @@ export default function Resources() {
                         <span>{opcao.texto}</span>
                       </div>
                       {showCorrect && <Check className="w-5 h-5 text-green-600 flex-shrink-0" />}
-                      {showWrong   && <X     className="w-5 h-5 text-red-600 flex-shrink-0" />}
+                      {showWrong   && <X     className="w-5 h-5 text-[#800020] flex-shrink-0" />}
                     </div>
                   </button>
                 );
@@ -1273,20 +1273,20 @@ export default function Resources() {
 
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-        <section className="bg-gradient-to-r from-red-600 to-red-800 text-white py-16">
+        <section className="bg-gradient-to-r from-[#800020] to-[#5C0016] text-white py-16">
           <div className="max-w-4xl mx-auto px-4 text-center">
             <div className="text-6xl mb-4">
               {percentage >= 80 ? '🏆' : percentage >= 60 ? '🎯' : percentage >= 40 ? '📚' : '💪'}
             </div>
             <h2 className="text-4xl font-bold mb-2">Quiz Concluído!</h2>
-            <p className="text-red-100 text-lg">{apiQuizData?.titulo}</p>
+            <p className="text-[#FEE8E8] text-lg">{apiQuizData?.titulo}</p>
           </div>
         </section>
 
         <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-3 gap-6 mb-8">
             <Card className="text-center p-6">
-              <div className="text-4xl font-bold text-red-600 mb-1">{score}</div>
+              <div className="text-4xl font-bold text-[#800020] mb-1">{score}</div>
               <div className="text-sm text-slate-500">Pontuação</div>
             </Card>
             <Card className="text-center p-6">
@@ -1307,7 +1307,7 @@ export default function Resources() {
                 setApiAnswers([]);
                 resetQuiz();
               }}
-              className="px-8 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
+              className="px-8 py-3 bg-[#800020] text-white rounded-lg hover:bg-[#5C0016] transition-colors font-semibold"
             >
               Tentar Novamente
             </button>
@@ -1334,7 +1334,7 @@ export default function Resources() {
     const totalLocais = localQuestions.length;
     const colorMap = {
       blue: { bg: 'bg-blue-600', hover: 'hover:bg-blue-700', light: 'bg-blue-50', text: 'text-blue-600' },
-      red: { bg: 'bg-red-600', hover: 'hover:bg-red-700', light: 'bg-red-50', text: 'text-red-600' },
+      red: { bg: 'bg-[#800020]', hover: 'hover:bg-[#5C0016]', light: 'bg-[#FFF2F2]', text: 'text-[#800020]' },
       green: { bg: 'bg-green-600', hover: 'hover:bg-green-700', light: 'bg-green-50', text: 'text-green-600' },
       purple: { bg: 'bg-purple-600', hover: 'hover:bg-purple-700', light: 'bg-purple-50', text: 'text-purple-600' },
       indigo: { bg: 'bg-indigo-600', hover: 'hover:bg-indigo-700', light: 'bg-indigo-50', text: 'text-indigo-600' },
@@ -1354,7 +1354,7 @@ export default function Resources() {
 
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-        <section className="bg-gradient-to-r from-red-600 via-red-700 to-red-800 text-white">
+        <section className="bg-gradient-to-r from-[#800020] via-[#5C0016] to-[#5C0016] text-white">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -1380,7 +1380,7 @@ export default function Resources() {
                 <div className="font-bold">{score} pts</div>
               </div>
               <div className={`backdrop-blur-sm rounded-lg p-3 ${
-                isTimeCritical ? 'bg-red-500/30 animate-pulse' :
+                isTimeCritical ? 'bg-[#800020]/30 animate-pulse' :
                 isTimeWarning ? 'bg-yellow-500/30' :
                 'bg-white/10'
               }`}>
@@ -1388,7 +1388,7 @@ export default function Resources() {
                   <Timer className="w-3 h-3" />
                   Tempo
                 </div>
-                <div className={`font-bold ${isTimeCritical ? 'text-red-200' : isTimeWarning ? 'text-yellow-200' : ''}`}>
+                <div className={`font-bold ${isTimeCritical ? 'text-[#FDD5D5]' : isTimeWarning ? 'text-yellow-200' : ''}`}>
                   {timeRemaining}s
                 </div>
               </div>
@@ -1409,7 +1409,7 @@ export default function Resources() {
               <div className="bg-white/20 rounded-full h-3 overflow-hidden">
                 <div
                   className={`h-3 rounded-full transition-all duration-1000 ${
-                    isTimeCritical ? 'bg-red-400' :
+                    isTimeCritical ? 'bg-[#A0002A]' :
                     isTimeWarning ? 'bg-yellow-400' :
                     'bg-green-400'
                   }`}
@@ -1422,8 +1422,8 @@ export default function Resources() {
 
         <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           {selectedAnswer === -1 && (
-            <div className="mb-6 p-4 bg-red-50 border-2 border-red-500 rounded-lg">
-              <div className="flex items-center gap-3 text-red-700">
+            <div className="mb-6 p-4 bg-[#FFF2F2] border-2 border-[#800020] rounded-lg">
+              <div className="flex items-center gap-3 text-[#5C0016]">
                 <Timer className="w-6 h-6" />
                 <div>
                   <p className="font-bold">Tempo Esgotado!</p>
@@ -1451,7 +1451,7 @@ export default function Resources() {
                     disabled={selectedAnswer !== null}
                     className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
                       showCorrect ? 'border-green-500 bg-green-50' :
-                      showIncorrect ? 'border-red-500 bg-red-50' :
+                      showIncorrect ? 'border-[#800020] bg-[#FFF2F2]' :
                       isSelected ? colors.light :
                       'border-slate-200 hover:border-slate-300'
                     } ${selectedAnswer !== null ? 'cursor-not-allowed' : 'cursor-pointer'}`}
@@ -1459,7 +1459,7 @@ export default function Resources() {
                     <div className="flex items-center justify-between">
                       <span>{option}</span>
                       {showCorrect && <Check className="w-5 h-5 text-green-600" />}
-                      {showIncorrect && <X className="w-5 h-5 text-red-600" />}
+                      {showIncorrect && <X className="w-5 h-5 text-[#800020]" />}
                     </div>
                   </button>
                 );
@@ -1483,7 +1483,7 @@ export default function Resources() {
     const percentage = (score / (currentQuiz.questions.length * 10)) * 100;
     const colorMap = {
       blue: { bg: 'bg-blue-600', text: 'text-blue-600', light: 'from-blue-50 to-blue-100' },
-      red: { bg: 'bg-red-600', text: 'text-red-600', light: 'from-red-50 to-red-100' },
+      red: { bg: 'bg-[#800020]', text: 'text-[#800020]', light: 'from-[#FFF2F2] to-[#FEE8E8]' },
       green: { bg: 'bg-green-600', text: 'text-green-600', light: 'from-green-50 to-green-100' },
       purple: { bg: 'bg-purple-600', text: 'text-purple-600', light: 'from-purple-50 to-purple-100' },
       indigo: { bg: 'bg-indigo-600', text: 'text-indigo-600', light: 'from-indigo-50 to-indigo-100' },
@@ -1499,7 +1499,7 @@ export default function Resources() {
 
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-        <section className="bg-gradient-to-r from-red-600 via-red-700 to-red-800 text-white">
+        <section className="bg-gradient-to-r from-[#800020] via-[#5C0016] to-[#5C0016] text-white">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
             <Trophy className="w-16 h-16 mx-auto mb-4" />
             <h2 className="text-4xl font-bold mb-4">Quiz Concluído!</h2>
@@ -1514,10 +1514,10 @@ export default function Resources() {
           <Card>
             <CardHeader className="text-center">
               <CardTitle className="text-3xl mb-4">Resultado Final</CardTitle>
-              <div className="text-6xl font-bold text-red-600 mb-2">{score}</div>
+              <div className="text-6xl font-bold text-[#800020] mb-2">{score}</div>
               <div className="text-slate-600">de {currentQuiz.questions.length * 10} pontos possíveis</div>
               <div className="mt-4">
-                <div className="inline-block px-6 py-2 bg-gradient-to-r from-red-50 to-yellow-50 rounded-full text-red-600 font-semibold border-2 border-red-200">
+                <div className="inline-block px-6 py-2 bg-gradient-to-r from-[#FFF2F2] to-yellow-50 rounded-full text-[#800020] font-semibold border-2 border-[#FDD5D5]">
                   {percentage.toFixed(0)}% de acerto
                 </div>
               </div>
@@ -1536,7 +1536,7 @@ export default function Resources() {
               <div className="flex gap-4 pt-4">
                 <button
                   onClick={() => startQuiz(activeQuiz)}
-                  className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                  className="flex-1 px-6 py-3 bg-[#800020] hover:bg-[#5C0016] text-white rounded-lg transition-colors"
                 >
                   Tentar Novamente
                 </button>
@@ -1556,9 +1556,9 @@ export default function Resources() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      <section className="text-white" style={{ background: '#C1121F' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16" style={{ background: '#C1121F' }}>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4" style={{ background: '#C1121F' }}>
+      <section className="text-white" style={{ background: '#800020' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16" style={{ background: '#800020' }}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4" style={{ background: '#800020' }}>
             <div className="flex items-center space-x-3">
               <GraduationCap className="w-8 h-8" />
               <h1 className="text-4xl font-bold">Teste o seu conhecimento</h1>
@@ -1566,13 +1566,13 @@ export default function Resources() {
             {(isAdmin || user?.pode_criar_quiz) && (
               <Link
                 to="/admin/quizzes"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white text-red-700 font-semibold text-sm hover:bg-red-50 transition-colors shrink-0"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white text-[#5C0016] font-semibold text-sm hover:bg-[#FFF2F2] transition-colors shrink-0"
               >
                 <PlusCircle className="w-4 h-4" /> Criar Quiz
               </Link>
             )}
           </div>
-          <p className="text-xl text-red-100 max-w-3xl">
+          <p className="text-xl text-[#FEE8E8] max-w-3xl">
             Responda a perguntas sobre economia e história de Angola. Ganhe pontos, compare resultados e aprenda jogando.
           </p>
         </div>
@@ -1593,7 +1593,7 @@ export default function Resources() {
                     setAuthAction('participar de quizzes');
                     setShowAuthPrompt(true);
                   }}
-                  className="bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-700 hover:to-yellow-700"
+                  className="bg-gradient-to-r from-[#800020] to-yellow-600 hover:from-[#5C0016] hover:to-yellow-700"
                 >
                   Entrar ou Cadastrar
                 </Button>
@@ -1622,8 +1622,8 @@ export default function Resources() {
                   )}
                   <CardHeader className="flex-shrink-0">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 rounded-lg bg-gradient-to-br from-red-100 to-yellow-100">
-                        <GraduationCap className="w-6 h-6 text-red-600" />
+                      <div className="p-2 rounded-lg bg-gradient-to-br from-[#FEE8E8] to-yellow-100">
+                        <GraduationCap className="w-6 h-6 text-[#800020]" />
                       </div>
                       <CardTitle className="text-base">{quiz.titulo}</CardTitle>
                     </div>
@@ -1636,7 +1636,7 @@ export default function Resources() {
                     </div>
                     <button
                       onClick={() => startApiQuiz(quiz.id)}
-                      className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2 mt-auto"
+                      className="w-full px-4 py-2 bg-[#800020] text-white rounded-lg hover:bg-[#5C0016] transition-colors flex items-center justify-center gap-2 mt-auto"
                     >
                       {!isAuthenticated && <Lock className="w-4 h-4" />}
                       Começar Quiz
@@ -1651,7 +1651,7 @@ export default function Resources() {
 
         {/* ── Quizzes Locais (exemplos) ─────────────────────────────────── */}
         <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <GraduationCap className="w-5 h-5 text-red-600" /> Quizzes de Exemplo
+          <GraduationCap className="w-5 h-5 text-[#800020]" /> Quizzes de Exemplo
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {Object.entries(quizzes).map(([key, quiz]) => (
@@ -1682,7 +1682,7 @@ export default function Resources() {
                 </p>
                 <button
                   onClick={() => startQuiz(key)}
-                  className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2 mt-auto"
+                  className="w-full px-4 py-2 bg-[#800020] text-white rounded-lg hover:bg-[#5C0016] transition-colors flex items-center justify-center gap-2 mt-auto"
                 >
                   {!isAuthenticated && <Lock className="w-4 h-4" />}
                   Começar Quiz
@@ -1698,8 +1698,8 @@ export default function Resources() {
             <div className="text-3xl font-bold text-blue-600 mb-2">{totalScore}</div>
             <div className="text-sm text-slate-700">Pontos Totais</div>
           </div>
-          <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-lg">
-            <div className="text-3xl font-bold text-red-600 mb-2">{totalQuizzes}</div>
+          <div className="bg-gradient-to-br from-[#FFF2F2] to-[#FEE8E8] p-6 rounded-lg">
+            <div className="text-3xl font-bold text-[#800020] mb-2">{totalQuizzes}</div>
             <div className="text-sm text-slate-700">Quizzes Completos</div>
           </div>
           <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-lg">
@@ -1727,7 +1727,7 @@ export default function Resources() {
                     }
                     setShowRanking(!showRanking);
                   }}
-                  className="bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm flex items-center gap-2 px-[16px] py-[8px]"
+                  className="bg-[#800020] text-white rounded-lg hover:bg-[#5C0016] transition-colors text-sm flex items-center gap-2 px-[16px] py-[8px]"
                 >
                   {!isAuthenticated && <Lock className="w-4 h-4" />}
                   {showRanking ? 'Ocultar' : 'Ver Ranking'}

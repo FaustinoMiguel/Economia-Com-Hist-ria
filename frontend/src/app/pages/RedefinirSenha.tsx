@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { BookOpen, Lock, Eye, EyeOff, Loader2, CheckCircle2, AlertTriangle, ArrowLeft } from 'lucide-react'
 import { apiRequest } from '../services/api'
@@ -12,7 +12,7 @@ function calcularForca(s: string): 'fraca' | 'razoavel' | 'forte' {
 }
 
 const FORCA_CFG = {
-  fraca:    { w: 'w-1/3',  bg: 'bg-red-500',   label: 'Fraca',    c: 'text-red-600'   },
+  fraca:    { w: 'w-1/3',  bg: 'bg-[#800020]',   label: 'Fraca',    c: 'text-[#800020]'   },
   razoavel: { w: 'w-2/3',  bg: 'bg-amber-400', label: 'Razoável', c: 'text-amber-600' },
   forte:    { w: 'w-full', bg: 'bg-green-500',  label: 'Forte',    c: 'text-green-600' },
 }
@@ -72,7 +72,7 @@ export default function RedefinirSenha() {
 
   const inputBase = `w-full h-11 pl-9 pr-10 text-sm border border-border rounded-lg bg-background
     text-foreground placeholder:text-muted-foreground focus:outline-none
-    focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-colors`
+    focus:border-[#800020] focus:ring-1 focus:ring-[#800020]/30 transition-colors`
 
   // ── Token inválido ─────────────────────────────────────────────────────────
   if (tokenInvalido) return (
@@ -89,11 +89,11 @@ export default function RedefinirSenha() {
         </p>
         <Link to="/recuperar-senha"
           className="flex items-center justify-center gap-2 w-full h-11 rounded-lg
-                     bg-red-700 hover:bg-red-800 text-white font-semibold text-sm transition-colors">
+                     bg-[#5C0016] hover:bg-[#5C0016] text-white font-semibold text-sm transition-colors">
           Solicitar novo link
         </Link>
         <p className="text-sm text-muted-foreground mt-4">
-          <Link to="/login" className="text-red-700 hover:text-red-800 font-medium">← Voltar ao login</Link>
+          <Link to="/login" className="text-[#5C0016] hover:text-[#5C0016] font-medium">← Voltar ao login</Link>
         </p>
       </div>
     </div>
@@ -116,7 +116,7 @@ export default function RedefinirSenha() {
         </p>
         <Link to="/login"
           className="flex items-center justify-center gap-2 w-full h-11 rounded-lg
-                     bg-red-700 hover:bg-red-800 text-white font-semibold text-sm transition-colors">
+                     bg-[#5C0016] hover:bg-[#5C0016] text-white font-semibold text-sm transition-colors">
           Entrar agora →
         </Link>
       </div>
@@ -129,14 +129,14 @@ export default function RedefinirSenha() {
       <BrandHeader />
       <div className="w-full max-w-md bg-card rounded-2xl border border-border shadow-md px-8 py-8">
         <div className="text-center mb-6">
-          <h1 className="text-xl font-bold text-red-700 mb-1">Definir nova senha</h1>
+          <h1 className="text-xl font-bold text-[#5C0016] mb-1">Definir nova senha</h1>
           <p className="text-muted-foreground text-sm">
             Escolhe uma senha forte com pelo menos 8 caracteres.
           </p>
         </div>
 
         {erro && (
-          <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <div className="mb-4 px-4 py-3 bg-[#FFF2F2] border border-[#FDD5D5] rounded-lg text-[#5C0016] text-sm">
             {erro}
           </div>
         )}
@@ -174,19 +174,19 @@ export default function RedefinirSenha() {
               <input type={mostrarConf ? 'text' : 'password'} value={confirmar}
                 onChange={(e) => setConfirmar(e.target.value)}
                 placeholder="Repete a senha" autoComplete="new-password"
-                className={`${inputBase} ${confirmar && nova !== confirmar ? 'border-red-400 bg-red-50' : ''}`} />
+                className={`${inputBase} ${confirmar && nova !== confirmar ? 'border-[#A0002A] bg-[#FFF2F2]' : ''}`} />
               <button type="button" onClick={() => setMostrarConf(!mostrarConf)} tabIndex={-1}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                 {mostrarConf ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
             {confirmar && nova !== confirmar && (
-              <p className="text-xs text-red-600">As senhas não coincidem.</p>
+              <p className="text-xs text-[#800020]">As senhas não coincidem.</p>
             )}
           </div>
 
           <button type="submit" disabled={loading}
-            className="w-full h-11 rounded-lg bg-red-700 hover:bg-red-800 text-white font-semibold
+            className="w-full h-11 rounded-lg bg-[#5C0016] hover:bg-[#5C0016] text-white font-semibold
                        text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60 mt-2">
             {loading
               ? <><Loader2 className="w-4 h-4 animate-spin" /> A redefinir…</>
@@ -197,7 +197,7 @@ export default function RedefinirSenha() {
 
         <p className="text-center text-sm text-muted-foreground mt-4">
           <Link to="/login"
-            className="inline-flex items-center gap-1 text-red-700 font-medium hover:text-red-800 transition-colors">
+            className="inline-flex items-center gap-1 text-[#5C0016] font-medium hover:text-[#5C0016] transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao login
           </Link>
         </p>
@@ -209,7 +209,7 @@ export default function RedefinirSenha() {
 function BrandHeader() {
   return (
     <div className="flex flex-col items-center gap-1 mb-6">
-      <div className="w-12 h-12 bg-red-700 rounded-xl flex items-center justify-center shadow-sm">
+      <div className="w-12 h-12 bg-[#5C0016] rounded-xl flex items-center justify-center shadow-sm">
         <BookOpen className="w-6 h-6 text-white" />
       </div>
       <span className="font-bold text-foreground text-base">Economia com História</span>

@@ -46,7 +46,13 @@ export async function createResposta(req: Request, res: Response) {
   const topicoId = Number(req.params.id)
   const { conteudo, resposta_pai_id = null } = req.body ?? {}
 
-  if (!conteudo?.trim()) return res.status(400).json({ message: 'conteudo é obrigatório.' })
+  const ficheiro     = (req as any).file as Express.Multer.File | undefined
+  const ficheiroUrl  = ficheiro ? `/uploads/forum/${ficheiro.filename}` : null
+  const ficheiroNome = ficheiro ? ficheiro.originalname : null
+
+  if (!conteudo?.trim() && !ficheiro) {
+    return res.status(400).json({ message: 'Escreve uma mensagem ou anexa um ficheiro.' })
+  }
 
   // Verifica se o tópico existe
   const [topicos] = await pool.query<RowDataPacket[]>(
@@ -56,8 +62,8 @@ export async function createResposta(req: Request, res: Response) {
   if (!(topicos as RowDataPacket[]).length) return res.status(404).json({ message: 'Tópico não encontrado.' })
 
   const [result] = await pool.query<ResultSetHeader>(
-    'INSERT INTO resposta_forum (topico_id, autor_id, resposta_pai_id, conteudo) VALUES (?, ?, ?, ?)',
-    [topicoId, userId, resposta_pai_id || null, conteudo.trim()],
+    'INSERT INTO resposta_forum (topico_id, autor_id, resposta_pai_id, conteudo, ficheiro_url, ficheiro_nome) VALUES (?, ?, ?, ?, ?, ?)',
+    [topicoId, userId, resposta_pai_id || null, conteudo?.trim() || '', ficheiroUrl, ficheiroNome],
   )
 
   // Incrementa contador de respostas no tópico
@@ -74,7 +80,7 @@ export async function createResposta(req: Request, res: Response) {
       await pool.query(
         `INSERT INTO notificacao (usuario_id, tipo, entidade_id, titulo, mensagem, link_destino)
          VALUES (?, 'nova_resposta_forum', ?, 'Nova resposta no teu tópico', 'Alguém respondeu ao teu tópico no fórum.', ?)`,
-        [autorTopico, topicoId, `/forum/${topicoId}`],
+        [autorTopico, topicoId, `/forum?topico=${topicoId}`],
       )
     }
   }

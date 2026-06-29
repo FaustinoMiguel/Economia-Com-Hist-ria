@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, Clock, Flag } from "lucide-react";
+﻿import { AlertTriangle, Check, Clock, Flag } from "lucide-react";
 import type { AccessRequestInfo, AccessRequestStatus, Content, ReportInfo, ReportStatus } from "./types";
 
 export function AccessStatusPanel({
@@ -26,7 +26,7 @@ export function AccessStatusPanel({
         isApproved
           ? "border-emerald-200 bg-emerald-50 text-emerald-800"
           : isRejected
-            ? "border-red-200 bg-red-50 text-red-800"
+            ? "border-[#FDD5D5] bg-[#FFF2F2] text-[#5C0016]"
             : "border-orange-200 bg-orange-50 text-orange-800"
       }`}
     >
@@ -91,7 +91,7 @@ export function ReportActionButton({
     <button
       onClick={() => openReportModal(content)}
       className={`flex items-center gap-2 text-sm transition-colors ${
-        reportInfo ? "text-blue-700 font-semibold hover:text-blue-800" : "text-slate-600 hover:text-red-600"
+        reportInfo ? "text-blue-700 font-semibold hover:text-blue-800" : "text-slate-600 hover:text-[#800020]"
       } ${className}`}
     >
       <Flag className="w-5 h-5" />

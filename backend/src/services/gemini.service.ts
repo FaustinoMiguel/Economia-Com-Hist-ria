@@ -82,18 +82,27 @@ export async function gerarQuizComIA(input: GerarQuizInput): Promise<QuizGerado>
 
   // ── Prompt rígido para garantir JSON limpo ──────────────────────────────
   const sistemPrompt =
-    'És um especialista em educação angolana, focado em Economia e História. ' +
+    'És um especialista em ECONOMIA E HISTÓRIA ECONÓMICA DE ANGOLA. ' +
+    'TODAS as perguntas que geras devem obrigatoriamente abordar dimensões económicas: ' +
+    'produção, comércio, finanças, recursos naturais, políticas económicas, desenvolvimento, ' +
+    'emprego, moeda, investimento, desigualdade ou impacto económico. ' +
+    'Se o tema for uma pessoa famosa, as perguntas devem focar o seu papel e legado ECONÓMICO, ' +
+    'não a sua vida pessoal ou feitos militares/políticos isolados. ' +
+    'Se o tema for vago, interpreta-o sempre através da lente da economia angolana, ' +
+    'podendo incluir também perguntas além do escopo estrito da economia angolana quando relevante. ' +
     'Respondes SEMPRE em JSON puro e válido, sem markdown, sem blocos de código, ' +
     'sem texto fora do JSON. Escreves em Português europeu, tom académico e acessível.'
 
   const userPrompt =
-    `Cria um quiz original sobre: "${input.tema}".\n` +
+    `Cria um quiz original com foco ECONÓMICO sobre: "${input.tema}".\n` +
     `Categoria: ${categoria}.\n` +
     `Público-alvo: ${publico}.\n` +
     `Dificuldade: ${dificuldade}.\n` +
     `Quantidade de perguntas: ${quantidade}.\n` +
     (input.titulo    ? `Título sugerido: ${input.titulo}.\n`    : '') +
     (input.descricao ? `Descrição base: ${input.descricao}.\n`  : '') +
+    '\nIMPORTANTE: todas as perguntas DEVEM ter relação directa com economia, ' +
+    'história económica, políticas económicas ou desenvolvimento económico de Angola.\n' +
     '\nResponde APENAS com este JSON (sem nada fora dele):\n' +
     '{\n' +
     '  "titulo": "string",\n' +

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+﻿import React, { useRef, useState } from "react";
 import {
   AlignCenter,
   AlignJustify,
@@ -269,7 +269,7 @@ export function RichTextEditor({ value, onChange, placeholder, className = "" }:
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="min-h-[200px] w-full resize-y p-3 focus:outline-none focus:ring-2 focus:ring-red-500 prose prose-sm max-w-none bg-white"
+        className="min-h-[200px] w-full resize-y p-3 focus:outline-none focus:ring-2 focus:ring-[#800020] prose prose-sm max-w-none bg-white"
         style={{ fontSize: "14px", lineHeight: "1.6" }}
       />
     </div>

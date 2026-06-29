@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import React from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Mic, SkipBack, Play, Pause, SkipForward, Volume2, Badge } from 'lucide-react'
 import type { PodcastEpisode } from './types'
@@ -125,12 +125,12 @@ export function PodcastPlayerBar({
               aria-label={isMuted ? 'Ativar som' : 'Silenciar áudio'}
               className="hover:text-white transition-colors"
             >
-              <Volume2 className={`w-4 h-4 ${isMuted ? 'text-red-500' : ''}`} />
+              <Volume2 className={`w-4 h-4 ${isMuted ? 'text-[#800020]' : ''}`} />
             </button>
             <span className="hidden sm:inline">Volume {isMuted ? '0%' : '80%'}</span>
             <button
               onClick={onStop}
-              className="p-1 px-2 rounded bg-slate-900 border border-slate-800 hover:border-slate-700 hover:text-red-500 transition-all"
+              className="p-1 px-2 rounded bg-slate-900 border border-slate-800 hover:border-slate-700 hover:text-[#800020] transition-all"
             >
               Fechar
             </button>

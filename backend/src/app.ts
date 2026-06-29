@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import path from 'path'
 import { router } from './routes/index.js'
 import { notFound } from './middlewares/notFound.js'
 import { errorHandler } from './middlewares/errorHandler.js'
@@ -19,6 +20,7 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'economia-historia-backend', version: '2.0.0' })
 })
 
+app.use('/uploads', express.static(path.resolve('uploads')))
 app.use('/api', router)
 app.use(notFound)
 app.use(errorHandler)

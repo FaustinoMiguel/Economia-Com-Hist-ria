@@ -1,4 +1,4 @@
-import { Link } from 'react-router'
+﻿import { Link } from 'react-router'
 import { BookOpen } from 'lucide-react'
 
 export default function Footer() {
@@ -8,7 +8,7 @@ export default function Footer() {
         <div className="mb-8 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-700">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#5C0016]">
                 <BookOpen className="h-4 w-4 text-white" />
               </div>
               <span className="text-base font-bold text-white">Economia com História</span>

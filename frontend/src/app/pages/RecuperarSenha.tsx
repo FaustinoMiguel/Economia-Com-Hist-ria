@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Link } from 'react-router'
 import { BookOpen, Mail, Loader2, CheckCircle2, ArrowLeft } from 'lucide-react'
 import { apiRequest } from '../services/api'
@@ -46,7 +46,7 @@ export default function RecuperarSenha() {
           <Link
             to="/login"
             className="inline-flex items-center justify-center gap-2 w-full h-11 rounded-lg
-                       bg-red-700 hover:bg-red-800 text-white font-semibold text-sm transition-colors"
+                       bg-[#5C0016] hover:bg-[#5C0016] text-white font-semibold text-sm transition-colors"
           >
             Voltar ao login
           </Link>
@@ -61,14 +61,14 @@ export default function RecuperarSenha() {
       <BrandHeader />
       <div className="w-full max-w-md bg-card rounded-2xl border border-border shadow-md px-8 py-8">
         <div className="text-center mb-6">
-          <h1 className="text-xl font-bold text-red-700 mb-1">Recuperar senha</h1>
+          <h1 className="text-xl font-bold text-[#5C0016] mb-1">Recuperar senha</h1>
           <p className="text-muted-foreground text-sm">
             Indica o teu email e enviamos um link para redefinires a senha.
           </p>
         </div>
 
         {erro && (
-          <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <div className="mb-4 px-4 py-3 bg-[#FFF2F2] border border-[#FDD5D5] rounded-lg text-[#5C0016] text-sm">
             {erro}
           </div>
         )}
@@ -86,7 +86,7 @@ export default function RecuperarSenha() {
                 autoComplete="email"
                 className="w-full h-11 pl-9 pr-4 text-sm border border-border rounded-lg bg-background
                            text-foreground placeholder:text-muted-foreground focus:outline-none
-                           focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-colors"
+                           focus:border-[#800020] focus:ring-1 focus:ring-[#800020]/30 transition-colors"
               />
             </div>
           </div>
@@ -94,7 +94,7 @@ export default function RecuperarSenha() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-11 rounded-lg bg-red-700 hover:bg-red-800 text-white font-semibold
+            className="w-full h-11 rounded-lg bg-[#5C0016] hover:bg-[#5C0016] text-white font-semibold
                        text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
           >
             {loading
@@ -107,7 +107,7 @@ export default function RecuperarSenha() {
         <p className="text-center text-sm text-muted-foreground mt-4">
           <Link
             to="/login"
-            className="inline-flex items-center gap-1 text-red-700 font-medium hover:text-red-800 transition-colors"
+            className="inline-flex items-center gap-1 text-[#5C0016] font-medium hover:text-[#5C0016] transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Voltar ao login
@@ -121,7 +121,7 @@ export default function RecuperarSenha() {
 function BrandHeader() {
   return (
     <div className="flex flex-col items-center gap-1 mb-6">
-      <div className="w-12 h-12 bg-red-700 rounded-xl flex items-center justify-center shadow-sm">
+      <div className="w-12 h-12 bg-[#5C0016] rounded-xl flex items-center justify-center shadow-sm">
         <BookOpen className="w-6 h-6 text-white" />
       </div>
       <span className="font-bold text-foreground text-base leading-tight">Economia com História</span>

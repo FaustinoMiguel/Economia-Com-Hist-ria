@@ -3,14 +3,12 @@
 -- O criador (professor) controla quem pode entrar e quem pode escrever.
 
 CREATE TABLE IF NOT EXISTS sala_discussao (
-  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id              INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
   titulo          VARCHAR(200) NOT NULL,
   descricao       TEXT,
-  criador_id      INT UNSIGNED NOT NULL,
-  -- Se ligada a um conteúdo ou tópico específico (opcional)
-  conteudo_id     INT UNSIGNED DEFAULT NULL,
-  topico_id       INT UNSIGNED DEFAULT NULL,
-  -- Controlo de acesso
+  criador_id      INT(11) NOT NULL,
+  conteudo_id     INT(11) DEFAULT NULL,
+  topico_id       INT(11) DEFAULT NULL,
   so_membros_comentam TINYINT(1) NOT NULL DEFAULT 1,
   criado_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_sala_criador    FOREIGN KEY (criador_id)  REFERENCES utilizador(id) ON DELETE CASCADE,
@@ -18,10 +16,9 @@ CREATE TABLE IF NOT EXISTS sala_discussao (
   CONSTRAINT fk_sala_topico     FOREIGN KEY (topico_id)   REFERENCES topico_forum(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Membros da sala (quem pode entrar)
 CREATE TABLE IF NOT EXISTS sala_membro (
-  sala_id         INT UNSIGNED NOT NULL,
-  utilizador_id   INT UNSIGNED NOT NULL,
+  sala_id         INT(11) NOT NULL,
+  utilizador_id   INT(11) NOT NULL,
   pode_comentar   TINYINT(1) NOT NULL DEFAULT 1,
   aprovado        TINYINT(1) NOT NULL DEFAULT 0,
   entrou_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -30,17 +27,15 @@ CREATE TABLE IF NOT EXISTS sala_membro (
   CONSTRAINT fk_membro_user  FOREIGN KEY (utilizador_id)  REFERENCES utilizador(id)     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Mensagens da sala
 CREATE TABLE IF NOT EXISTS mensagem_sala (
-  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  sala_id         INT UNSIGNED NOT NULL,
-  autor_id        INT UNSIGNED NOT NULL,
+  id              INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  sala_id         INT(11) NOT NULL,
+  autor_id        INT(11) NOT NULL,
   mensagem        TEXT NOT NULL,
   criado_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_msg_sala  FOREIGN KEY (sala_id)   REFERENCES sala_discussao(id) ON DELETE CASCADE,
   CONSTRAINT fk_msg_autor FOREIGN KEY (autor_id)  REFERENCES utilizador(id)     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Índices para queries frequentes
 CREATE INDEX idx_mensagem_sala_sala_id  ON mensagem_sala(sala_id, criado_em);
 CREATE INDEX idx_sala_membro_user       ON sala_membro(utilizador_id);

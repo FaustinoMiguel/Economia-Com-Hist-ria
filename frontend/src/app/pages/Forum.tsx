@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import {
   ThumbsUp, Plus, Search, Pin, CircleCheck, Eye, Clock,
   MessageCircle, X, ArrowLeft, Flame, MessageSquare, ShieldCheck, Lock, Send, Trash2,
+  Paperclip, FileText, Image as ImageIcon, UserCheck, UserX, Bell,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../components/ui/dialog';
 import { useAuth } from '../contexts/AuthContext';
-import { apiRequest } from '../services/api';
+import { apiRequest, getToken, getApiBase } from '../services/api';
+import FicheiroPreview from '../components/FicheiroPreview';
 import AuthPrompt from '../components/AuthPrompt';
 import { toast } from 'sonner';
 
@@ -13,6 +16,8 @@ import { toast } from 'sonner';
 interface Resposta {
   id: number;
   conteudo: string;
+  ficheiro_url?: string | null;
+  ficheiro_nome?: string | null;
   autor_id: number;
   autor_nome: string;
   autor_tipo?: string;
@@ -40,6 +45,8 @@ interface Topico {
   visualizacoes: number;
   criado_em: string;
   ultima_atividade: string;
+  acesso_pedido?: 'pendente' | 'aprovado' | 'rejeitado' | null;
+  pedidos_pendentes?: number;
 }
 interface TopicoDetalhe extends Topico {
   respostas_lista: Resposta[];
@@ -129,6 +136,15 @@ export default function Forum() {
 
   const [respostaTexto, setRespostaTexto] = useState('');
   const [aResponder, setAResponder] = useState(false);
+  const [ficheiroAnexo, setFicheiroAnexo] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [aPedirAcesso, setAPedirAcesso] = useState(false);
+
+  interface PedidoAcesso { id: number; subscrito_id: number; nome: string; email: string; motivo: string | null; criado_em: string }
+  const [pedidosAcesso, setPedidosAcesso] = useState<PedidoAcesso[]>([]);
+  const [aResponderPedido, setAResponderPedido] = useState<number | null>(null);
+  const [showPedidosModal, setShowPedidosModal] = useState<{ topicoId: number; titulo: string } | null>(null);
+  const [loadingPedidos, setLoadingPedidos] = useState(false);
 
   const exigirLogin = (acao: string) => { setAuthAction(acao); setShowAuth(true); };
 
@@ -145,6 +161,15 @@ export default function Forum() {
     }
   }, []);
   useEffect(() => { void carregar(); }, [carregar]);
+
+  // Abre automaticamente o tópico indicado no query param ?topico=ID (vindo de notificações)
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const id = Number(searchParams.get('topico'));
+    if (!id || todos.length === 0) return;
+    abrir(id);
+    setSearchParams({}, { replace: true });
+  }, [todos, searchParams]);
 
   // ── Derivados (filtro + pesquisa + ordenação, fixados primeiro) ────────────
   const visiveis = useMemo(() => {
@@ -197,11 +222,16 @@ export default function Forum() {
   // ── Abrir detalhe ─────────────────────────────────────────────────────────
   const abrir = async (id: number) => {
     setLoadingDetalhe(true);
+    setPedidosAcesso([]);
     try {
       const data = await apiRequest<any>(`/topicos/${id}`);
       setDetalhe({ ...data, respostas_lista: data.respostas ?? [] });
       setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, visualizacoes: Number(data.visualizacoes ?? t.visualizacoes) } : t)));
       window.scrollTo({ top: 0 });
+      // Se o tópico é privado, tenta carregar pedidos (o backend rejeita se não for o criador)
+      if (data.tipo_privacidade === 'privado') {
+        void carregarPedidos(id);
+      }
     } catch (e) {
       toast.error('Não foi possível abrir o tópico.');
     } finally {
@@ -271,20 +301,106 @@ export default function Forum() {
     finally { setACriar(false); }
   };
 
+  // ── Pedido de acesso a tópico privado ────────────────────────────────────
+  const pedirAcesso = async (id: number) => {
+    if (!isAuthenticated) return exigirLogin('pedir acesso a tópicos privados');
+    setAPedirAcesso(true);
+    try {
+      await apiRequest(`/topicos/${id}/solicitar-acesso`, { method: 'POST', json: {} });
+      toast.success('Pedido de acesso enviado ao criador do tópico.');
+      setTodos((prev) => prev.map((t) => t.id === id ? { ...t, acesso_pedido: 'pendente' } : t));
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Não foi possível enviar o pedido.');
+    } finally {
+      setAPedirAcesso(false);
+    }
+  };
+
+  const cancelarAcesso = async (id: number) => {
+    try {
+      await apiRequest(`/topicos/${id}/solicitar-acesso`, { method: 'DELETE' });
+      toast.success('Pedido de acesso cancelado.');
+      setTodos((prev) => prev.map((t) => t.id === id ? { ...t, acesso_pedido: null } : t));
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Não foi possível cancelar o pedido.');
+    }
+  };
+
+  // ── Gestão de pedidos de acesso ───────────────────────────────────────────
+  const carregarPedidos = async (topicoId: number) => {
+    setLoadingPedidos(true);
+    try {
+      const data = await apiRequest<{ pedidos: PedidoAcesso[] }>(`/topicos/${topicoId}/pedidos-acesso`);
+      setPedidosAcesso(data.pedidos ?? []);
+    } catch (e) {
+      toast.error('Erro ao carregar pedidos: ' + (e as Error).message);
+      setPedidosAcesso([]);
+    } finally {
+      setLoadingPedidos(false);
+    }
+  };
+
+  const abrirModalPedidos = async (t: Topico, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPedidosAcesso([]);
+    setShowPedidosModal({ topicoId: t.id, titulo: t.titulo });
+    await carregarPedidos(t.id);
+  };
+
+  const responderPedidoModal = async (pedidoId: number, acao: 'aprovar' | 'rejeitar') => {
+    if (!showPedidosModal) return;
+    setAResponderPedido(pedidoId);
+    try {
+      await apiRequest(`/topicos/${showPedidosModal.topicoId}/pedidos-acesso/${pedidoId}`, { method: 'PATCH', json: { acao } });
+      setPedidosAcesso(prev => prev.filter(p => p.id !== pedidoId));
+      setTodos(prev => prev.map(t => t.id === showPedidosModal.topicoId
+        ? { ...t, pedidos_pendentes: Math.max(0, (t.pedidos_pendentes ?? 1) - 1) }
+        : t));
+      toast.success(acao === 'aprovar' ? 'Acesso aprovado.' : 'Pedido rejeitado.');
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setAResponderPedido(null); }
+  };
+
+  const responderPedido = async (topicoId: number, pedidoId: number, acao: 'aprovar' | 'rejeitar') => {
+    setAResponderPedido(pedidoId);
+    try {
+      await apiRequest(`/topicos/${topicoId}/pedidos-acesso/${pedidoId}`, { method: 'PATCH', json: { acao } });
+      setPedidosAcesso(prev => prev.filter(p => p.id !== pedidoId));
+      toast.success(acao === 'aprovar' ? 'Acesso aprovado.' : 'Pedido rejeitado.');
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setAResponderPedido(null); }
+  };
+
   // ── Responder ─────────────────────────────────────────────────────────────
   const responder = async () => {
     if (!detalhe) return;
     if (!isAuthenticated) return exigirLogin('responder a tópicos');
-    if (!respostaTexto.trim()) return;
+    if (!respostaTexto.trim() && !ficheiroAnexo) return;
     setAResponder(true);
     try {
-      const nova = await apiRequest<any>(`/topicos/${detalhe.id}/respostas`, { method: 'POST', json: { conteudo: respostaTexto.trim() } });
+      let nova: any;
+      if (ficheiroAnexo) {
+        const fd = new FormData();
+        fd.append('conteudo', respostaTexto.trim());
+        fd.append('ficheiro', ficheiroAnexo);
+        const resp = await fetch(`${getApiBase()}/topicos/${detalhe.id}/respostas`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${getToken()}` },
+          body: fd,
+        });
+        if (!resp.ok) throw new Error((await resp.json()).message ?? 'Erro ao enviar.');
+        nova = await resp.json();
+      } else {
+        nova = await apiRequest<any>(`/topicos/${detalhe.id}/respostas`, { method: 'POST', json: { conteudo: respostaTexto.trim() } });
+      }
       setDetalhe((d) => d ? { ...d, respostas: d.respostas + 1, respostas_lista: [...d.respostas_lista, {
-        id: nova.id, conteudo: nova.conteudo, autor_id: nova.autor_id, autor_nome: nova.autor_nome ?? (user as any)?.nome ?? 'Tu',
+        id: nova.id, conteudo: nova.conteudo, ficheiro_url: nova.ficheiro_url, ficheiro_nome: nova.ficheiro_nome,
+        autor_id: nova.autor_id, autor_nome: nova.autor_nome ?? (user as any)?.nome ?? 'Tu',
         autor_tipo: nova.autor_tipo, votos: 0, meu_voto: 0, publicado_em: nova.publicado_em ?? new Date().toISOString(), aceite: false,
       }] } : d);
       setTodos((prev) => prev.map((t) => t.id === detalhe.id ? { ...t, respostas: t.respostas + 1 } : t));
       setRespostaTexto('');
+      setFicheiroAnexo(null);
     } catch (e) { toast.error((e as Error).message); }
     finally { setAResponder(false); }
   };
@@ -301,7 +417,7 @@ export default function Forum() {
 
         <button
           onClick={() => { setDetalhe(null); window.scrollTo({ top: 0 }); }}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-red-600 mb-4 border border-slate-200 hover:border-red-300 rounded-lg px-3 py-1.5 bg-white"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-[#800020] mb-4 border border-slate-200 hover:border-[#FBBCB8] rounded-lg px-3 py-1.5 bg-white"
         >
           <ArrowLeft className="w-4 h-4" /> Voltar aos debates
         </button>
@@ -326,17 +442,59 @@ export default function Forum() {
             ) : null}
             <div className="flex items-center justify-between border-t border-slate-100 pt-2.5 flex-wrap gap-2">
               <span className="flex items-center gap-1.5 text-xs text-slate-400">
-                <span className="w-6 h-6 rounded-full bg-red-100 text-red-700 flex items-center justify-center text-[10px] font-medium">{iniciais(detalhe.autor_nome)}</span>
-                {detalhe.autor_nome}{ehStaff(detalhe.autor_tipo) ? <ShieldCheck className="w-3 h-3 text-red-500" /> : null} · {tempoRelativo(detalhe.criado_em)}
+                <span className="w-6 h-6 rounded-full bg-[#FEE8E8] text-[#5C0016] flex items-center justify-center text-[10px] font-medium">{iniciais(detalhe.autor_nome)}</span>
+                {detalhe.autor_nome}{ehStaff(detalhe.autor_tipo) ? <ShieldCheck className="w-3 h-3 text-[#800020]" /> : null} · {tempoRelativo(detalhe.criado_em)}
               </span>
               <span className="flex items-center gap-3 text-xs text-slate-400">
                 <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> {detalhe.visualizacoes}</span>
-                {isAdmin ? <button onClick={() => fixar(detalhe.id)} className="flex items-center gap-1 hover:text-red-600"><Pin className="w-3.5 h-3.5" /> {detalhe.fixado ? 'Desafixar' : 'Fixar'}</button> : null}
-                {isAdmin ? <button onClick={() => apagarTopico(detalhe.id)} className="flex items-center gap-1 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /> Apagar</button> : null}
+                {isAdmin ? <button onClick={() => fixar(detalhe.id)} className="flex items-center gap-1 hover:text-[#800020]"><Pin className="w-3.5 h-3.5" /> {detalhe.fixado ? 'Desafixar' : 'Fixar'}</button> : null}
+                {isAdmin ? <button onClick={() => apagarTopico(detalhe.id)} className="flex items-center gap-1 hover:text-[#800020]"><Trash2 className="w-3.5 h-3.5" /> Apagar</button> : null}
               </span>
             </div>
           </div>
         </div>
+
+        {/* Painel de pedidos de acesso pendentes — visível só ao criador */}
+        {pedidosAcesso.length > 0 && (
+          <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Bell className="w-4 h-4 text-amber-600" />
+              <span className="text-sm font-semibold text-amber-800">
+                {pedidosAcesso.length} {pedidosAcesso.length === 1 ? 'pedido de acesso pendente' : 'pedidos de acesso pendentes'}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {pedidosAcesso.map(p => (
+                <div key={p.id} className="flex items-center gap-3 bg-white rounded-lg border border-amber-100 px-3 py-2.5">
+                  <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold shrink-0">
+                    {p.nome.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-900">{p.nome}</p>
+                    <p className="text-xs text-slate-500 truncate">{p.email}</p>
+                    {p.motivo && <p className="text-xs text-slate-400 italic mt-0.5">"{p.motivo}"</p>}
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <button
+                      onClick={() => responderPedido(detalhe.id, p.id, 'aprovar')}
+                      disabled={aResponderPedido === p.id}
+                      className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 transition-colors"
+                    >
+                      <UserCheck className="w-3.5 h-3.5" /> Aprovar
+                    </button>
+                    <button
+                      onClick={() => responderPedido(detalhe.id, p.id, 'rejeitar')}
+                      disabled={aResponderPedido === p.id}
+                      className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-[#FFF2F2] hover:text-[#800020] text-slate-600 disabled:opacity-50 transition-colors"
+                    >
+                      <UserX className="w-3.5 h-3.5" /> Rejeitar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center justify-between px-1 mt-6 mb-3">
           <span className="text-sm font-medium text-slate-800">{detalhe.respostas_lista.length} {detalhe.respostas_lista.length === 1 ? 'resposta' : 'respostas'}</span>
@@ -353,7 +511,10 @@ export default function Forum() {
                   {ehStaff(r.autor_tipo) ? <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#FAEEDA] text-[#854F0B] font-medium">Admin</span> : null}
                   {r.aceite ? <span className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#E1F5EE] text-[#0F6E56] flex items-center gap-1"><CircleCheck className="w-2.5 h-2.5" /> Solução aceite</span> : null}
                 </div>
-                <p className="text-[14px] text-slate-600 leading-relaxed whitespace-pre-wrap">{r.conteudo}</p>
+                {r.conteudo && <p className="text-[14px] text-slate-600 leading-relaxed whitespace-pre-wrap">{r.conteudo}</p>}
+                {r.ficheiro_url && (
+                  <FicheiroPreview ficheiroUrl={r.ficheiro_url} ficheiroNome={r.ficheiro_nome} />
+                )}
                 {podeResolver(detalhe) ? (
                   <div className="mt-2.5">
                     {r.aceite
@@ -375,10 +536,28 @@ export default function Forum() {
             value={respostaTexto}
             onChange={(e) => setRespostaTexto(e.target.value)}
             placeholder="Partilha a tua perspetiva com detalhe..."
-            className="w-full min-h-[80px] border border-slate-200 rounded-lg p-2.5 text-[13px] bg-slate-50 resize-y outline-none focus:border-red-400"
+            className="w-full min-h-[80px] border border-slate-200 rounded-lg p-2.5 text-[13px] bg-slate-50 resize-y outline-none focus:border-[#A0002A]"
           />
-          <div className="flex justify-end mt-2.5">
-            <button onClick={responder} disabled={aResponder || !respostaTexto.trim()} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg px-4 py-2 text-[13px] font-medium">
+          {/* Pré-visualização do ficheiro anexado */}
+          {ficheiroAnexo && (
+            <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+              {ficheiroAnexo.type.startsWith('image/') ? <ImageIcon className="w-4 h-4 text-blue-500 shrink-0" /> : <FileText className="w-4 h-4 text-blue-500 shrink-0" />}
+              <span className="text-xs text-blue-700 truncate flex-1">{ficheiroAnexo.name}</span>
+              <span className="text-[10px] text-blue-400">({(ficheiroAnexo.size / 1024).toFixed(0)} KB)</span>
+              <button onClick={() => { setFicheiroAnexo(null); if (fileInputRef.current) fileInputRef.current.value = '' }} className="text-blue-400 hover:text-[#800020] ml-1"><X className="w-3.5 h-3.5" /></button>
+            </div>
+          )}
+          <div className="flex items-center justify-between mt-2.5">
+            <div>
+              <input ref={fileInputRef} type="file" className="hidden" id="forum-anexo"
+                accept="image/*,.pdf,.doc,.docx,.txt"
+                onChange={(e) => setFicheiroAnexo(e.target.files?.[0] ?? null)}
+              />
+              <label htmlFor="forum-anexo" className="flex items-center gap-1.5 text-[12px] text-slate-500 hover:text-[#800020] cursor-pointer border border-slate-200 hover:border-[#FBBCB8] rounded-lg px-3 py-1.5 transition-colors">
+                <Paperclip className="w-3.5 h-3.5" /> Anexar ficheiro
+              </label>
+            </div>
+            <button onClick={responder} disabled={aResponder || (!respostaTexto.trim() && !ficheiroAnexo)} className="flex items-center gap-1.5 bg-[#800020] hover:bg-[#5C0016] disabled:opacity-50 text-white rounded-lg px-4 py-2 text-[13px] font-medium">
               <Send className="w-3.5 h-3.5" /> {aResponder ? 'A publicar…' : 'Publicar resposta'}
             </button>
           </div>
@@ -399,7 +578,7 @@ export default function Forum() {
           <h1 className="text-[20px] font-semibold text-slate-900">Fórum da comunidade</h1>
           <p className="text-[13px] text-slate-400 mt-0.5">Debate, dúvidas e partilha sobre economia e história de Angola</p>
         </div>
-        <button onClick={() => (isAuthenticated ? setShowNovo(true) : exigirLogin('criar um tópico'))} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md px-3.5 py-2 text-[13px] font-medium">
+        <button onClick={() => (isAuthenticated ? setShowNovo(true) : exigirLogin('criar um tópico'))} className="flex items-center gap-1.5 bg-[#800020] hover:bg-[#5C0016] text-white rounded-md px-3.5 py-2 text-[13px] font-medium">
           <Plus className="w-4 h-4" /> Novo tópico
         </button>
       </div>
@@ -409,13 +588,13 @@ export default function Forum() {
         <aside className="hidden md:flex w-[170px] flex-shrink-0 flex-col gap-3">
           <div className="bg-white border border-slate-200 rounded-xl p-3">
             <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-2">Categorias</div>
-            <button onClick={() => setCategoria('all')} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[13px] ${categoria === 'all' ? 'bg-red-50 text-red-800 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}>
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#C1121F' }} />
+            <button onClick={() => setCategoria('all')} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[13px] ${categoria === 'all' ? 'bg-[#FFF2F2] text-[#5C0016] font-medium' : 'text-slate-600 hover:bg-slate-50'}`}>
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#800020' }} />
               Todas
               <span className="ml-auto text-[11px] text-slate-400">{todos.length}</span>
             </button>
             {categoriasLista.map(({ nome, n }) => (
-              <button key={nome} onClick={() => setCategoria(nome)} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[13px] text-left ${categoria === nome ? 'bg-red-50 text-red-800 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}>
+              <button key={nome} onClick={() => setCategoria(nome)} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[13px] text-left ${categoria === nome ? 'bg-[#FFF2F2] text-[#5C0016] font-medium' : 'text-slate-600 hover:bg-slate-50'}`}>
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: corCategoria(nome).dot }} />
                 <span className="truncate">{nome}</span>
                 <span className="ml-auto text-[11px] text-slate-400 flex-shrink-0">{n}</span>
@@ -456,13 +635,61 @@ export default function Forum() {
           ) : (
             <>
               {fixados.length > 0 && <div className="text-[11px] text-slate-400 font-medium uppercase tracking-wide pt-1">Fixados</div>}
-              {fixados.map((t) => <Card key={t.id} t={t} onOpen={abrir} onVote={votarTopico} podeGerir={isProfessorOuAdmin} onDelete={apagarTopico} />)}
+              {fixados.map((t) => <Card key={t.id} t={t} onOpen={abrir} onVote={votarTopico} podeGerir={isProfessorOuAdmin} onDelete={apagarTopico} onPedirAcesso={pedirAcesso} aPedirAcesso={aPedirAcesso} onCancelarAcesso={cancelarAcesso} onAbrirPedidos={abrirModalPedidos} userId={(user as any)?.id ?? null} />)}
               {normais.length > 0 && <div className="text-[11px] text-slate-400 font-medium uppercase tracking-wide pt-2 flex items-center gap-1"><Flame className="w-3 h-3 text-[#BA7517]" /> Discussões</div>}
-              {normais.map((t) => <Card key={t.id} t={t} onOpen={abrir} onVote={votarTopico} podeGerir={isProfessorOuAdmin} onDelete={apagarTopico} />)}
+              {normais.map((t) => <Card key={t.id} t={t} onOpen={abrir} onVote={votarTopico} podeGerir={isProfessorOuAdmin} onDelete={apagarTopico} onPedirAcesso={pedirAcesso} aPedirAcesso={aPedirAcesso} onCancelarAcesso={cancelarAcesso} onAbrirPedidos={abrirModalPedidos} userId={(user as any)?.id ?? null} />)}
             </>
           )}
         </main>
       </div>
+
+      {/* Modal de pedidos de acesso (a partir da lista) */}
+      <Dialog open={!!showPedidosModal} onOpenChange={(o) => { if (!o) setShowPedidosModal(null) }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Bell className="w-4 h-4 text-amber-500" /> Pedidos de acesso</DialogTitle>
+            <DialogDescription className="truncate text-slate-500">{showPedidosModal?.titulo}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-80 overflow-y-auto mt-1">
+            {loadingPedidos && (
+              <div className="space-y-2">
+                {[1,2].map(i => <div key={i} className="h-14 rounded-lg bg-slate-100 animate-pulse" />)}
+              </div>
+            )}
+            {!loadingPedidos && pedidosAcesso.length === 0 && (
+              <p className="text-sm text-slate-400 text-center py-6">Nenhum pedido pendente.</p>
+            )}
+            {pedidosAcesso.map(p => (
+              <div key={p.id} className="flex items-center gap-3 p-3 rounded-lg border border-slate-200">
+                <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold shrink-0">
+                  {p.nome.substring(0, 2).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-900">{p.nome}</p>
+                  <p className="text-xs text-slate-500 truncate">{p.email}</p>
+                  {p.motivo && <p className="text-xs text-slate-400 italic mt-0.5">"{p.motivo}"</p>}
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  <button
+                    onClick={() => responderPedidoModal(p.id, 'aprovar')}
+                    disabled={aResponderPedido === p.id}
+                    className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+                  >
+                    <UserCheck className="w-3.5 h-3.5" /> Aprovar
+                  </button>
+                  <button
+                    onClick={() => responderPedidoModal(p.id, 'rejeitar')}
+                    disabled={aResponderPedido === p.id}
+                    className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-[#FFF2F2] hover:text-[#800020] text-slate-600 disabled:opacity-50"
+                  >
+                    <UserX className="w-3.5 h-3.5" /> Rejeitar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal novo tópico */}
       <Dialog open={showNovo} onOpenChange={setShowNovo}>
@@ -474,23 +701,23 @@ export default function Forum() {
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1.5">Título</label>
-              <input value={novo.titulo} onChange={(e) => setNovo({ ...novo, titulo: e.target.value })} placeholder="Escreve um título claro e específico..." className="w-full border border-slate-200 rounded-md px-3 py-2 text-[13px] bg-slate-50 outline-none focus:border-red-400" />
+              <input value={novo.titulo} onChange={(e) => setNovo({ ...novo, titulo: e.target.value })} placeholder="Escreve um título claro e específico..." className="w-full border border-slate-200 rounded-md px-3 py-2 text-[13px] bg-slate-50 outline-none focus:border-[#A0002A]" />
             </div>
             <div className="flex gap-2.5">
               <div className="flex-1">
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">Categoria</label>
-                <select value={novo.categoria} onChange={(e) => setNovo({ ...novo, categoria: e.target.value })} className="w-full border border-slate-200 rounded-md px-3 py-2 text-[13px] bg-slate-50 outline-none focus:border-red-400">
+                <select value={novo.categoria} onChange={(e) => setNovo({ ...novo, categoria: e.target.value })} className="w-full border border-slate-200 rounded-md px-3 py-2 text-[13px] bg-slate-50 outline-none focus:border-[#A0002A]">
                   {(categoriasLista.length ? categoriasLista.map((c) => c.nome) : ['Economia', 'História', 'Sociedade', 'Política']).map((nome) => <option key={nome} value={nome}>{nome}</option>)}
                 </select>
               </div>
               <div className="flex-1">
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">Tags (opcional)</label>
-                <input value={novo.tags} onChange={(e) => setNovo({ ...novo, tags: e.target.value })} placeholder="ex: sonangol, inflação" className="w-full border border-slate-200 rounded-md px-3 py-2 text-[13px] bg-slate-50 outline-none focus:border-red-400" />
+                <input value={novo.tags} onChange={(e) => setNovo({ ...novo, tags: e.target.value })} placeholder="ex: sonangol, inflação" className="w-full border border-slate-200 rounded-md px-3 py-2 text-[13px] bg-slate-50 outline-none focus:border-[#A0002A]" />
               </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1.5">Conteúdo</label>
-              <textarea value={novo.descricao} onChange={(e) => setNovo({ ...novo, descricao: e.target.value })} placeholder="Descreve a tua dúvida ou partilha a tua perspetiva..." className="w-full min-h-[100px] border border-slate-200 rounded-md px-3 py-2 text-[13px] bg-slate-50 resize-y outline-none focus:border-red-400" />
+              <textarea value={novo.descricao} onChange={(e) => setNovo({ ...novo, descricao: e.target.value })} placeholder="Descreve a tua dúvida ou partilha a tua perspetiva..." className="w-full min-h-[100px] border border-slate-200 rounded-md px-3 py-2 text-[13px] bg-slate-50 resize-y outline-none focus:border-[#A0002A]" />
             </div>
             <label className="flex items-center gap-2 text-xs text-slate-600">
               <input type="checkbox" checked={novo.privado} onChange={(e) => setNovo({ ...novo, privado: e.target.checked })} /> Tópico privado (requer aprovação de acesso)
@@ -498,7 +725,7 @@ export default function Forum() {
           </div>
           <DialogFooter>
             <button onClick={() => setShowNovo(false)} className="border border-slate-200 rounded-md px-4 py-2 text-[13px] text-slate-600">Cancelar</button>
-            <button onClick={criar} disabled={aCriar} className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-md px-4 py-2 text-[13px] font-medium">{aCriar ? 'A publicar…' : 'Publicar tópico'}</button>
+            <button onClick={criar} disabled={aCriar} className="bg-[#800020] hover:bg-[#5C0016] disabled:opacity-50 text-white rounded-md px-4 py-2 text-[13px] font-medium">{aCriar ? 'A publicar…' : 'Publicar tópico'}</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -507,35 +734,93 @@ export default function Forum() {
 }
 
 // ── Card de tópico ──────────────────────────────────────────────────────────
-function Card({ t, onOpen, onVote, podeGerir, onDelete }: { t: Topico; onOpen: (id: number) => void; onVote: (id: number, v: number) => void; podeGerir?: boolean; onDelete?: (id: number) => void }) {
-  const accent = t.fixado ? 'border-l-[3px] border-l-red-600' : t.resolvido ? 'border-l-[3px] border-l-[#1D9E75]' : '';
+function Card({ t, onOpen, onVote, podeGerir, onDelete, onPedirAcesso, aPedirAcesso, onCancelarAcesso, onAbrirPedidos, userId }: {
+  t: Topico; onOpen: (id: number) => void; onVote: (id: number, v: number) => void;
+  podeGerir?: boolean; onDelete?: (id: number) => void;
+  onPedirAcesso?: (id: number) => void; aPedirAcesso?: boolean;
+  onCancelarAcesso?: (id: number) => void;
+  onAbrirPedidos?: (t: Topico, e: React.MouseEvent) => void;
+  userId?: number | null;
+}) {
+  const accent = t.fixado ? 'border-l-[3px] border-l-[#800020]' : t.resolvido ? 'border-l-[3px] border-l-[#1D9E75]' : '';
+  const ehPrivado = t.tipo_privacidade === 'privado';
+  const ehCriador = userId != null && t.criado_por === userId;
+  const bloqueado = ehPrivado && !ehCriador && !podeGerir && t.acesso_pedido !== 'aprovado';
+
   return (
-    <div onClick={() => onOpen(t.id)} className={`bg-white border border-slate-200 rounded-xl p-3.5 flex gap-3.5 cursor-pointer hover:border-slate-300 transition-colors ${accent}`}>
+    <div
+      onClick={() => !bloqueado && onOpen(t.id)}
+      className={`bg-white border border-slate-200 rounded-xl p-3.5 flex gap-3.5 transition-colors ${bloqueado ? 'opacity-80' : 'cursor-pointer hover:border-slate-300'} ${accent}`}
+    >
       <VotoCol votos={t.votos} meuVoto={t.meu_voto} onVote={(v) => onVote(t.id, v)} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
           {t.fixado ? <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#FCEBEB] text-[#791F1F] flex items-center gap-1"><Pin className="w-2.5 h-2.5" /> Fixado</span> : null}
           {t.resolvido ? <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#E1F5EE] text-[#0F6E56] flex items-center gap-1"><CircleCheck className="w-2.5 h-2.5" /> Resolvido</span> : null}
-          {t.tipo_privacidade === 'privado' ? <Lock className="w-3 h-3 text-slate-400" /> : null}
+          {ehPrivado ? <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 flex items-center gap-1"><Lock className="w-2.5 h-2.5" /> Privado</span> : null}
           <CatBadge cat={t.categoria} />
         </div>
         <div className="text-[14px] font-medium text-slate-900 mb-1 leading-snug">{t.titulo}</div>
-        <div className="text-[12px] text-slate-500 leading-snug overflow-hidden text-ellipsis whitespace-nowrap mb-2">{t.descricao}</div>
+        {!bloqueado && <div className="text-[12px] text-slate-500 leading-snug overflow-hidden text-ellipsis whitespace-nowrap mb-2">{t.descricao}</div>}
+        {bloqueado && (
+          <div className="mb-2">
+            {t.acesso_pedido === 'pendente' ? (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                  <Clock className="w-3 h-3" /> Pedido pendente
+                </span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onCancelarAcesso?.(t.id); }}
+                  className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-[#800020] border border-slate-200 hover:border-[#FBBCB8] px-2 py-0.5 rounded-full transition-colors"
+                >
+                  <X className="w-3 h-3" /> Cancelar
+                </button>
+              </div>
+            ) : t.acesso_pedido === 'rejeitado' ? (
+              <span className="inline-flex items-center gap-1 text-[11px] text-[#800020] bg-[#FFF2F2] border border-[#FDD5D5] px-2 py-0.5 rounded-full">
+                <X className="w-3 h-3" /> Acesso rejeitado
+              </span>
+            ) : (
+              <button
+                onClick={(e) => { e.stopPropagation(); onPedirAcesso?.(t.id); }}
+                disabled={aPedirAcesso}
+                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-white bg-[#800020] hover:bg-[#5C0016] disabled:opacity-50 px-3 py-1 rounded-lg transition-colors"
+              >
+                <UserCheck className="w-3.5 h-3.5" /> Pedir acesso
+              </button>
+            )}
+          </div>
+        )}
         <div className="flex items-center gap-3 flex-wrap">
           <span className="flex items-center gap-1.5 text-[11px] text-slate-400">
-            <span className="w-5 h-5 rounded-full bg-red-100 text-red-700 flex items-center justify-center text-[9px] font-medium">{iniciais(t.autor_nome)}</span>
-            {t.autor_nome}{ehStaff(t.autor_tipo) ? <ShieldCheck className="w-3 h-3 text-red-500" /> : null}
+            <span className="w-5 h-5 rounded-full bg-[#FEE8E8] text-[#5C0016] flex items-center justify-center text-[9px] font-medium">{iniciais(t.autor_nome)}</span>
+            {t.autor_nome}{ehStaff(t.autor_tipo) ? <ShieldCheck className="w-3 h-3 text-[#800020]" /> : null}
           </span>
           <span className="flex items-center gap-1 text-[11px] text-slate-400"><Clock className="w-3 h-3" /> {tempoRelativo(t.criado_em)}</span>
           {t.visualizacoes > 0 ? <span className="flex items-center gap-1 text-[11px] text-slate-400"><Eye className="w-3 h-3" /> {t.visualizacoes}</span> : null}
         </div>
       </div>
-      <div className="flex flex-col items-center justify-center min-w-[46px] gap-1">
+      <div className="flex flex-col items-center justify-center min-w-[56px] gap-1.5">
         {podeGerir && onDelete ? (
-          <button onClick={(e) => { e.stopPropagation(); onDelete(t.id); }} aria-label="apagar tópico" title="Apagar tópico" className="text-slate-300 hover:text-red-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+          <button onClick={(e) => { e.stopPropagation(); onDelete(t.id); }} aria-label="apagar tópico" title="Apagar tópico" className="text-slate-300 hover:text-[#800020] transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
         ) : null}
-        <div className={`text-lg font-medium ${t.respostas === 0 ? 'text-slate-300' : 'text-slate-800'}`}>{t.respostas}</div>
-        <div className={`text-[10px] ${t.respostas === 0 ? 'text-amber-600' : 'text-slate-400'}`}>{t.respostas === 0 ? 'sem resp.' : 'respostas'}</div>
+        {/* Botão de pedidos pendentes — visível ao criador e admins */}
+        {(podeGerir || t.criado_por === userId) && t.tipo_privacidade === 'privado' && (t.pedidos_pendentes ?? 0) > 0 && (
+          <button
+            onClick={(e) => onAbrirPedidos?.(t, e)}
+            className="relative flex items-center justify-center w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-600 text-white transition-colors"
+            title="Ver pedidos de acesso pendentes"
+          >
+            <Bell className="w-3.5 h-3.5" />
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#800020] rounded-full text-[9px] flex items-center justify-center font-bold">
+              {t.pedidos_pendentes}
+            </span>
+          </button>
+        )}
+        {!bloqueado && <>
+          <div className={`text-lg font-medium ${t.respostas === 0 ? 'text-slate-300' : 'text-slate-800'}`}>{t.respostas}</div>
+          <div className={`text-[10px] ${t.respostas === 0 ? 'text-amber-600' : 'text-slate-400'}`}>{t.respostas === 0 ? 'sem resp.' : 'respostas'}</div>
+        </>}
       </div>
     </div>
   );

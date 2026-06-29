@@ -1,4 +1,4 @@
-import { Link } from 'react-router'
+﻿import { Link } from 'react-router'
 import { ArrowRight, MapPin } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import videoSrc from '../../imports/8199516-hd_1920_1080_25fps.mp4'
@@ -36,7 +36,7 @@ export default function HeroCarousel() {
             <div className="flex flex-wrap gap-4">
               <Link
                 to="/explorar"
-                className="inline-flex items-center gap-2 rounded-lg bg-red-700 px-6 py-3 font-semibold text-white shadow-lg transition-colors duration-200 hover:bg-red-800"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#5C0016] px-6 py-3 font-semibold text-white shadow-lg transition-colors duration-200 hover:bg-[#5C0016]"
               >
                 Ver Conteúdos
                 <ArrowRight className="h-4 w-4 transition-transform" />

@@ -8,12 +8,13 @@ import {
 } from '../controllers/comentario.controller.js'
 import { authenticate } from '../middlewares/authenticate.js'
 import { requireAuth } from '../middlewares/requireRole.js'
+import { uploadForum } from '../middlewares/upload.js'
 
 export const forumRouter = Router()
 
 // Respostas de tópicos do fórum
 forumRouter.get   ('/topicos/:id/respostas',     authenticate, requireAuth, listRespostas)
-forumRouter.post  ('/topicos/:id/respostas',     authenticate, requireAuth, createResposta)
+forumRouter.post  ('/topicos/:id/respostas',     authenticate, requireAuth, uploadForum, createResposta)
 forumRouter.delete('/respostas/:id',             authenticate, requireAuth, deleteResposta)
 forumRouter.post  ('/respostas/:id/like',        authenticate, requireAuth, likeResposta)
 forumRouter.post  ('/respostas/:id/votar',       authenticate, requireAuth, votarResposta)

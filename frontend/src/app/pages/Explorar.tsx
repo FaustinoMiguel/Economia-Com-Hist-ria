@@ -345,7 +345,7 @@ export default function Explorar() {
       : <FileText className="w-16 h-16 text-white" />
 
     const imageColor = item.tipo === 'video'
-      ? 'from-red-600 via-red-700 to-slate-950'
+      ? 'from-[#800020] via-[#5C0016] to-slate-950'
       : item.tipo === 'podcast'
       ? 'from-violet-600 via-indigo-800 to-slate-950'
       : 'from-emerald-600 via-teal-700 to-slate-950'
@@ -1640,7 +1640,7 @@ export default function Explorar() {
         tags: newContent.categories,
         requiresAccess: resolvedType === "texto_jindungo",
         imageColor: resolvedType === "video"
-          ? "from-red-600 to-red-800"
+          ? "from-[#800020] to-[#5C0016]"
           : resolvedType === "podcast"
             ? "from-purple-600 to-indigo-800"
             : resolvedType === "texto_jindungo"
@@ -1715,7 +1715,7 @@ export default function Explorar() {
   const categoryLabels: { [key: string]: { label: string; icon: any; color: string } } = {
     all: { label: "Todas Categorias", icon: Globe, color: "from-slate-700 to-slate-900" },
     economia: { label: "Economia", icon: TrendingUp, color: "from-amber-600 to-amber-800" },
-    historia: { label: "História", icon: Landmark, color: "from-red-600 to-red-800" },
+    historia: { label: "História", icon: Landmark, color: "from-[#800020] to-[#5C0016]" },
     cultura: { label: "Cultura & Tradição", icon: Users, color: "from-emerald-600 to-emerald-800" },
     politica: { label: "Política Pública", icon: Landmark, color: "from-blue-600 to-blue-800" },
     educacao: { label: "Educação", icon: BookOpen, color: "from-pink-600 to-pink-800" },
@@ -1929,14 +1929,14 @@ export default function Explorar() {
               transition={{ duration: 0.3 }}
               className={`bg-white border-l-4 shadow-xl rounded-xl p-4 pointer-events-auto flex gap-3 items-start ${
                 t.type === "success" ? "border-emerald-500" :
-                t.type === "error" ? "border-red-500" :
+                t.type === "error" ? "border-[#800020]" :
                 t.type === "warning" ? "border-amber-500" :
                 "border-blue-500"
               }`}
             >
               <div className="mt-1">
                 {t.type === "success" && <Check className="w-5 h-5 text-emerald-600" />}
-                {t.type === "error" && <AlertTriangle className="w-5 h-5 text-red-600" />}
+                {t.type === "error" && <AlertTriangle className="w-5 h-5 text-[#800020]" />}
                 {t.type === "warning" && <AlertTriangle className="w-5 h-5 text-amber-600" />}
                 {t.type === "info" && <MessageCircle className="w-5 h-5 text-blue-600" />}
               </div>
@@ -1966,12 +1966,12 @@ export default function Explorar() {
       </div>
 
       {/* CABEÇALHO - ALTERADO: RECURSOS MULTIMÉDIA → EXPLORAR CONTEÚDOS, Educação e Cultura Angolana → Educação e História Angolana */}
-      <header className="bg-[#264653] border-b border-[#2C2C2E] py-4 px-6 md:px-12 flex flex-col md:flex-row md:items-center md:justify-between sticky top-0 z-10 gap-4">
+      <header className="bg-[#800020] border-b border-[#5C0016] py-4 px-6 md:px-12 flex flex-col md:flex-row md:items-center md:justify-between sticky top-0 z-10 gap-4">
         <div className="flex items-center gap-3">
-          <BookOpen className="w-8 h-8 text-red-500" />
+          <BookOpen className="w-8 h-8 text-[#FDD5D5]" />
           <div>
             <h1 className="text-xl font-bold text-white uppercase tracking-wider">EXPLORAR CONTEÚDOS</h1>
-            <p className="text-xs text-gray-300">Educação e História Angolana</p>
+            <p className="text-xs text-[#FDD5D5]">Educação e História Angolana</p>
           </div>
         </div>
 
@@ -1987,8 +1987,8 @@ export default function Explorar() {
             }}
             className={`px-4 py-2 text-xs font-semibold rounded-lg border flex items-center gap-2 transition-all ${
               showSavedContents
-                ? "bg-[#800020] text-white border-[#800020] hover:bg-[#5C0016]"
-                : "border-gray-700 bg-transparent hover:bg-gray-800 text-white"
+                ? "bg-white text-[#800020] border-white"
+                : "border-[#FBBCB8]/40 bg-white/10 hover:bg-white/20 text-white"
             }`}
           >
             <Bookmark className="w-4 h-4" fill={showSavedContents ? "currentColor" : "none"} />
@@ -2004,34 +2004,29 @@ export default function Explorar() {
               }
               setShowPlaylist(true);
             }}
-            className="border-gray-700 bg-transparent hover:bg-gray-800 text-white px-4 py-2 text-xs font-semibold rounded-lg border flex items-center gap-2 transition-all whitespace-nowrap"
+            className="border-[#FBBCB8]/40 bg-white/10 hover:bg-white/20 text-white px-4 py-2 text-xs font-semibold rounded-lg border flex items-center gap-2 transition-all whitespace-nowrap"
           >
-            <List className="w-4 h-4 text-purple-400" />
+            <List className="w-4 h-4 text-[#FDD5D5]" />
             <span>Minha Playlist ({Object.keys(playlistItems).length})</span>
           </button>
 
           <button
             onClick={() => setShowHistory(true)}
-            className="border-[#E9C46A]/50 bg-[#E9C46A]/10 hover:bg-[#E9C46A]/20 text-white px-4 py-2 text-xs font-semibold rounded-lg border flex items-center gap-2 transition-all whitespace-nowrap"
+            className="border-[#FBBCB8]/40 bg-white/10 hover:bg-white/20 text-white px-4 py-2 text-xs font-semibold rounded-lg border flex items-center gap-2 transition-all whitespace-nowrap"
           >
-            <History className="w-4 h-4 text-amber-300" />
+            <History className="w-4 h-4 text-[#FDD5D5]" />
             <span>Histórico ({viewedHistory.length})</span>
           </button>
           
-          <button
-            onClick={() => {
-              if (!isAuthenticated) {
-                setAuthAction('adicionar conteúdo');
-                setShowAuthPrompt(true);
-                return;
-              }
-              setIsAddModalOpen(true);
-            }}
-            className="bg-[#9E152F] hover:bg-[#5C0016] text-white text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-all whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Adicionar Conteúdo</span>
-          </button>
+          {isProfessorOuAdmin && (
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="bg-white text-[#800020] hover:bg-[#FEE8E8] text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-all whitespace-nowrap"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Adicionar Conteúdo</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -2273,15 +2268,15 @@ export default function Explorar() {
 
         {/* Dynamic Media Grid View */}
         {contentLoadError ? (
-          <div className="mb-6 rounded-3xl border border-red-200 bg-red-50 p-6 text-red-800 shadow-sm">
+          <div className="mb-6 rounded-3xl border border-[#FDD5D5] bg-[#FFF2F2] p-6 text-[#5C0016] shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold">Falha ao carregar conteúdos</p>
-                <p className="mt-1 text-xs text-red-700/80">{contentLoadError}</p>
+                <p className="mt-1 text-xs text-[#5C0016]/80">{contentLoadError}</p>
               </div>
               <button
                 onClick={carregarConteudos}
-                className="inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 transition-colors"
+                className="inline-flex items-center gap-2 rounded-full bg-[#800020] px-4 py-2 text-xs font-bold text-white hover:bg-[#5C0016] transition-colors"
               >
                 <RefreshCcw className="w-4 h-4" />
                 Recarregar
@@ -2487,7 +2482,7 @@ export default function Explorar() {
 
                 <div className="flex items-center justify-between flex-wrap gap-4 mb-4 pb-4 border-b border-slate-200">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                    <div className="w-12 h-12 bg-[#800020] rounded-full flex items-center justify-center text-white font-bold text-lg">
                       {videoContent.author.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                     </div>
                     <div>
@@ -2516,7 +2511,7 @@ export default function Explorar() {
                   <button
                     onClick={() => handleLike(videoContent.id)}
                     className={`flex items-center gap-2 text-sm transition-colors ${
-                      likedContents[videoContent.id] ? "text-red-600 font-semibold" : "text-slate-600 hover:text-red-600"
+                      likedContents[videoContent.id] ? "text-[#800020] font-semibold" : "text-slate-600 hover:text-[#800020]"
                     }`}
                   >
                     <motion.span
@@ -2540,7 +2535,7 @@ export default function Explorar() {
                   <button
                     onClick={() => handleSave(videoContent.id, videoContent.title)}
                     className={`flex items-center gap-2 text-sm transition-colors ${
-                      savedContents[videoContent.id] ? "text-red-600 font-semibold" : "text-slate-600 hover:text-red-600"
+                      savedContents[videoContent.id] ? "text-[#800020] font-semibold" : "text-slate-600 hover:text-[#800020]"
                     }`}
                   >
                     <motion.span
@@ -2554,14 +2549,14 @@ export default function Explorar() {
                   </button>
                   <button
                     onClick={() => handleCopyShareLink(videoContent)}
-                    className="flex items-center gap-2 text-sm text-slate-600 hover:text-red-600 transition-colors"
+                    className="flex items-center gap-2 text-sm text-slate-600 hover:text-[#800020] transition-colors"
                   >
                     <Share2 className="w-5 h-5" />
                     <span>Partilhar</span>
                   </button>
                   <button
                     onClick={() => handleDownloadTrigger(videoContent)}
-                    className="flex items-center gap-2 text-sm text-slate-600 hover:text-red-600 transition-colors"
+                    className="flex items-center gap-2 text-sm text-slate-600 hover:text-[#800020] transition-colors"
                   >
                     <Download className="w-5 h-5" />
                     <span>Download</span>
@@ -2624,7 +2619,7 @@ export default function Explorar() {
                 <h1 className="text-4xl font-bold text-slate-900 mb-4 leading-tight">{textContent.title}</h1>
                 
                 <div className="flex items-center gap-4 pb-6 border-b border-slate-200 mb-6">
-                  <div className="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
+                  <div className="w-14 h-14 bg-[#800020] rounded-full flex items-center justify-center text-white font-bold text-xl">
                     {textContent.author.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                   </div>
                   <div>
@@ -2660,7 +2655,7 @@ export default function Explorar() {
                   <button
                     onClick={() => handleLike(textContent.id)}
                     className={`flex items-center gap-2 text-sm transition-colors ${
-                      likedContents[textContent.id] ? "text-red-600 font-semibold" : "text-slate-600 hover:text-red-600"
+                      likedContents[textContent.id] ? "text-[#800020] font-semibold" : "text-slate-600 hover:text-[#800020]"
                     }`}
                   >
                     <motion.span
@@ -2684,7 +2679,7 @@ export default function Explorar() {
                   <button
                     onClick={() => handleSave(textContent.id, textContent.title)}
                     className={`flex items-center gap-2 text-sm transition-colors ${
-                      savedContents[textContent.id] ? "text-red-600 font-semibold" : "text-slate-600 hover:text-red-600"
+                      savedContents[textContent.id] ? "text-[#800020] font-semibold" : "text-slate-600 hover:text-[#800020]"
                     }`}
                   >
                     <motion.span
@@ -2698,14 +2693,14 @@ export default function Explorar() {
                   </button>
                   <button
                     onClick={() => handleCopyShareLink(textContent)}
-                    className="flex items-center gap-2 text-sm text-slate-600 hover:text-red-600 transition-colors"
+                    className="flex items-center gap-2 text-sm text-slate-600 hover:text-[#800020] transition-colors"
                   >
                     <Share2 className="w-5 h-5" />
                     <span>Partilhar</span>
                   </button>
                   <button
                     onClick={() => handleDownloadTrigger(textContent)}
-                    className="flex items-center gap-2 text-sm text-slate-600 hover:text-red-600 transition-colors"
+                    className="flex items-center gap-2 text-sm text-slate-600 hover:text-[#800020] transition-colors"
                   >
                     <Download className="w-5 h-5" />
                     <span>Download</span>
@@ -2763,7 +2758,7 @@ export default function Explorar() {
                   </div>
                   
                   <div className="flex-1 pb-2">
-                    <span className="text-sm font-bold uppercase tracking-wider text-red-600 mb-2 block">Podcast</span>
+                    <span className="text-sm font-bold uppercase tracking-wider text-[#800020] mb-2 block">Podcast</span>
                     <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-4 leading-tight">{podcastContent.title}</h2>
                     <div className="flex items-center gap-3 text-base text-gray-600 mb-6">
                       <span className="text-slate-700 font-medium">{podcastContent.author}</span>
@@ -2773,14 +2768,14 @@ export default function Explorar() {
                     <div className="flex flex-wrap items-center gap-4 text-sm">
                       <button
                         onClick={() => handleCopyShareLink(podcastContent)}
-                        className="flex items-center gap-2 text-slate-600 hover:text-red-600 transition-colors"
+                        className="flex items-center gap-2 text-slate-600 hover:text-[#800020] transition-colors"
                       >
                         <Share2 className="w-5 h-5" />
                         <span>Partilhar</span>
                       </button>
                       <button
                         onClick={() => handleDownloadTrigger(podcastContent)}
-                        className="flex items-center gap-2 text-slate-600 hover:text-red-600 transition-colors"
+                        className="flex items-center gap-2 text-slate-600 hover:text-[#800020] transition-colors"
                       >
                         <Download className="w-5 h-5" />
                         <span>Download</span>
@@ -2818,8 +2813,8 @@ export default function Explorar() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.22 }}
                         className={`bg-gray-50 hover:bg-gray-100 rounded-xl p-5 transition-colors group ${
-                          currentEpisode?.id === ep.id ? 'border-2 border-red-300 bg-red-50/30' : 'border border-transparent'
-                        } ${playingEpisodeId === ep.id ? 'border-2 border-red-300 bg-red-50/30' : ''}`}
+                          currentEpisode?.id === ep.id ? 'border-2 border-[#FBBCB8] bg-[#FFF2F2]/30' : 'border border-transparent'
+                        } ${playingEpisodeId === ep.id ? 'border-2 border-[#FBBCB8] bg-[#FFF2F2]/30' : ''}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -2828,7 +2823,7 @@ export default function Explorar() {
                               tabIndex={0}
                               aria-expanded={currentEpisode?.id === ep.id}
                               aria-label={`Mostrar detalhes do episódio ${ep.title}`}
-                              className="min-w-0 cursor-pointer flex-1 focus:outline-none focus:ring-2 focus:ring-red-300 rounded-md"
+                              className="min-w-0 cursor-pointer flex-1 focus:outline-none focus:ring-2 focus:ring-[#FBBCB8] rounded-md"
                               onClick={() => setCurrentEpisode(ep)}
                               onKeyDown={(event) => {
                                 if (event.key === "Enter" || event.key === " ") {
@@ -2837,7 +2832,7 @@ export default function Explorar() {
                                 }
                               }}
                             >
-                              <p className="text-slate-800 font-medium text-base group-hover:text-red-600 transition-colors truncate">
+                              <p className="text-slate-800 font-medium text-base group-hover:text-[#800020] transition-colors truncate">
                                 {ep.title}
                               </p>
                               <p className="text-gray-500 text-sm mt-0.5">{ep.duration} · {ep.date}</p>
@@ -2888,7 +2883,7 @@ export default function Explorar() {
 
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
         <DialogContent className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl relative z-10 text-center">
-              <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 rounded-full bg-[#FEE8E8] text-[#800020] flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-6 h-6" />
               </div>
               <DialogTitle className="text-lg font-bold text-slate-900">Pretende eliminar este item?</DialogTitle>
@@ -2908,7 +2903,7 @@ export default function Explorar() {
                 </button>
                 <button
                   onClick={executeDelete}
-                  className="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-colors"
+                  className="px-4 py-2 rounded-xl bg-[#800020] text-white hover:bg-[#5C0016] transition-colors"
                 >
                   Sim, Excluir Ficheiro
                 </button>
@@ -2935,7 +2930,7 @@ export default function Explorar() {
 
             <div className="bg-slate-50 rounded-lg p-4 mb-4 border border-slate-200">
               <p className="font-semibold text-slate-900 mb-1">Conteúdo:</p>
-              <p className="text-red-600 font-medium">{selectedContentForAccess?.title}</p>
+              <p className="text-[#800020] font-medium">{selectedContentForAccess?.title}</p>
               <p className="text-sm text-slate-600 mt-1">{selectedContentForAccess?.description}</p>
             </div>
 
@@ -3057,7 +3052,7 @@ export default function Explorar() {
                       <button
                         onClick={() => removePlaylistItem(key, item)}
                         aria-label={`Remover ${item.episodeTitle} da playlist`}
-                        className="p-2 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-red-650 hover:bg-red-50 hover:border-red-100 transition-colors"
+                        className="p-2 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-red-650 hover:bg-[#FFF2F2] hover:border-[#FEE8E8] transition-colors"
                         title="Remover"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -3232,11 +3227,11 @@ export default function Explorar() {
                           value={newContent.title}
                           onChange={(e) => setNewContent({ ...newContent, title: e.target.value })}
                           className={`py-3 text-base font-semibold focus:ring-2 focus:ring-[#800020] ${
-                            addContentSubmitAttempted && !newContent.title.trim() ? "border-red-300" : ""
+                            addContentSubmitAttempted && !newContent.title.trim() ? "border-[#FBBCB8]" : ""
                           }`}
                         />
                         {addContentSubmitAttempted && !newContent.title.trim() && (
-                          <p className="mt-2 text-xs font-medium text-red-600">Adicione um título antes de publicar.</p>
+                          <p className="mt-2 text-xs font-medium text-[#800020]">Adicione um título antes de publicar.</p>
                         )}
                       </div>
 
@@ -3279,7 +3274,7 @@ export default function Explorar() {
                           </SelectContent>
                         </Select>
                         <p className={`mt-2 text-xs font-medium ${
-                          addContentSubmitAttempted && newContent.categories.length === 0 ? "text-red-600" : "text-slate-500"
+                          addContentSubmitAttempted && newContent.categories.length === 0 ? "text-[#800020]" : "text-slate-500"
                         }`}>
                           {addContentSubmitAttempted && newContent.categories.length === 0
                             ? "Selecione pelo menos uma categoria antes de publicar."
@@ -3299,7 +3294,7 @@ export default function Explorar() {
                           onClick={handleAddNewCategory}
                           disabled={!newContent.newCategoryInput.trim()}
                           variant="outline"
-                          className="border-[#800020] text-[#800020] hover:bg-red-50"
+                          className="border-[#800020] text-[#800020] hover:bg-[#FFF2F2]"
                         >
                           <Plus className="mr-1 h-4 w-4" />
                           Adicionar
@@ -3489,7 +3484,7 @@ export default function Explorar() {
                                     type="button"
                                     onClick={() => handleRemoveEpisode(ep.id)}
                                     aria-label={`Remover episódio ${ep.title}`}
-                                    className="ml-2 rounded-lg p-1 text-red-500 transition hover:bg-red-50 hover:text-red-700"
+                                    className="ml-2 rounded-lg p-1 text-[#800020] transition hover:bg-[#FFF2F2] hover:text-[#5C0016]"
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </button>
@@ -3641,7 +3636,7 @@ export default function Explorar() {
                     <div className="space-y-1">
                       {newContent.episodes.map((ep, idx) => (
                         <div key={idx} className="flex items-center gap-2 text-sm text-slate-600">
-                          <Play className="w-3 h-3 text-red-600" />
+                          <Play className="w-3 h-3 text-[#800020]" />
                           <span className="font-medium">{ep.title}</span>
                           <span className="text-slate-400">· {ep.duration}</span>
                         </div>
@@ -3694,7 +3689,7 @@ export default function Explorar() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <Flag className="w-5 h-5 text-red-600" />
+              <Flag className="w-5 h-5 text-[#800020]" />
               Denunciar Conteúdo
             </DialogTitle>
             <DialogDescription>
@@ -3719,12 +3714,12 @@ export default function Explorar() {
             <div className="mt-4 space-y-4">
               <div>
                 <Label className="text-sm font-medium text-slate-700 mb-2 block">
-                  Motivo da Denúncia <span className="text-red-500">*</span>
+                  Motivo da Denúncia <span className="text-[#800020]">*</span>
                 </Label>
                 <select
                   value={reportReason}
                   onChange={(e) => setReportReason(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800020]"
                 >
                   <option value="">Selecione um motivo...</option>
                   <option value="spam">Conteúdo de spam ou publicidade</option>
@@ -3761,7 +3756,7 @@ export default function Explorar() {
               Cancelar
             </Button>
             {selectedContentForReport && getReportInfo(selectedContentForReport.id) ? null : (
-              <Button onClick={handleReport} className="bg-red-600 hover:bg-red-700">
+              <Button onClick={handleReport} className="bg-[#800020] hover:bg-[#5C0016]">
                 Enviar Denúncia
               </Button>
             )}

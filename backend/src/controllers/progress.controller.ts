@@ -150,6 +150,7 @@ export async function getRanking(_req: Request, res: Response) {
      FROM resposta_quiz_usuario r
      JOIN utilizador u ON u.id = r.usuario_id
      WHERE u.ativo = 1
+       AND u.tipo NOT IN ('admin', 'superadmin', 'professor')
      GROUP BY u.id
      HAVING quizzes_completados > 0
      ORDER BY pontuacao_total DESC, ultimo_quiz ASC
